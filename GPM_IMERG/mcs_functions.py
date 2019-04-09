@@ -161,23 +161,31 @@ def update_labels(mcs_labels, mcs_labels_next, threshold_overlap):
 
 
 
-
 ## This function calculates and stores the lon and lat values of the system centers defined as the mean lon/lat of all
 # pixels which belong to one identified system 
 # returns dictionary with the number tags for each identied MCS as key values and corresponding lat and lon values 
     
-    
 def store_statistics(mcs_labels, date, time, system_stats, lats, lons, mcs):
     for i in np.unique(mcs_labels[mcs_labels > 0]):
-        data = [str(i), str(date), str(time), np.mean(lats[mcs_labels == i ]) , np.mean(lons[mcs_labels == i ]), np.nanmean(mcs[ mcs_labels == i ]), np.nanmax(mcs[ mcs_labels == i ]), np.nanmin(mcs[ mcs_labels == i ]) ] 
+        area= 0 
+        loc= np.where(mcs_labels == i)
+        for idx,x in enumerate(loc[0]):
+            y = loc[1][idx]             
+            R = 6371
+            lat1= np.deg2rad(lats[x,y]-0.05)
+            lat2 = np.deg2rad(lats[x,y]+0.05)
+            lon1= np.deg2rad(lons[x,y]-0.05)
+            lon2 = np.deg2rad(lons[x,y] + 0.05)
+            A= (np.sin(lat2) - np.sin(lat1)) * (lon2 - lon1) * R**2
+            area+= A 
+        skew = scipy.stats.skew(mcs[mcs_labels ==i], axis=0, bias=True) 
+        data = [str(i), str(date), str(time), np.mean(lats[mcs_labels == i ]) , np.mean(lons[mcs_labels == i ]), np.nanmean(mcs[ mcs_labels == i ]), np.nanmax(mcs[ mcs_labels == i ]), np.nanmin(mcs[ mcs_labels == i ]), area, skew] 
         system_stats.loc[len(system_stats)] = data
         system_stats.ID = system_stats.ID.astype(int)   
         system_stats.date = system_stats.date.astype(int)
         system_stats.time = system_stats.time.astype(int)
         
     return system_stats
-
-
 
 
 # This function removes all identified MCS which only persist for less than the defined time threshold value 
@@ -194,6 +202,18 @@ def timestep_con(all_mcs_labels, system_stats):
 
 
 
+# This function removes all identified MCS which do not contain at least one step where a size larger than 10 000 km2 is reached 
+
+def size_con(system_stats):
+    for l in all_mcs_labels:
+        mcs = system_stats.loc[system_stats['ID'] == l]  
+        if mcs.loc[mcs['area'] > threshold_max_area].shape[0] == 0:
+            system_stats = system_stats[system_stats.ID != l]        
+    # sort values 
+    system_stats= system_stats.sort_values(['ID', 'date', 'time'], ascending=True )       
+    return system_stats
+
+
 
 ## This function saves the creates pandas dataframe with all detected MCS tracks within one month to a netcdf file 
 
@@ -205,11 +225,98 @@ def create_netcdf(system_stats, output_path):
 
 
 
+#### This function plots all detected MCS inzoomad 
 
 
+def plot_mcs(lons, lats, mcs, mcs_labels, date, time):
+    #if val not in np.array(all_mcs_labels):
+     #   max_id = mcs[mcs == np.max(mcs)]
+      #  val = mcs_labels[mcs == max_id][0]   # get ID from MCS with strongest precipitation in this time slot 
+
+        for val in np.unique(mcs_labels[mcs_labels > 0]):
+
+            loc= np.where(mcs_labels == val)
+
+            fig = plt.figure(figsize=(20, 10))
+
+            if np.min(loc[0]) > 9:
+                r1= np.min(loc[0])-10
+            else:
+                r1= 0 
+
+            if np.min(loc[1]) > 9:
+                c1= np.min(loc[1])-10
+            else:
+                c1 = 0
+                
+            if np.max(loc[0])+10 > np.shape(lons)[0]:
+                r2= np.max(loc[0])
+            else:
+                r2= np.max(loc[0])+10
+
+            if np.max(loc[1])+10 > np.shape(lons)[1]:
+                c2= np.max(loc[1])
+            else:
+                c2= np.max(loc[1])+10                       
+                
+            cmap = plt.cm.get_cmap('viridis', lut= 10)
+
+            plt.xlabel('Lon $^\circ$N')
+            plt.ylabel('Lat $^\circ$N')
+
+            m = Basemap(projection='cyl', llcrnrlat=lats[0,c1],urcrnrlat=lats[0, c2-1], llcrnrlon= lons[r1,0], urcrnrlon=lons[r2-1,0],  resolution = 'c')
+            lon, lat =np.meshgrid(lons[r1:r2,0], lats[0,c1:c2])
+            xi,yi = m(lon,lat)
+            cs = plt.contourf(xi,yi, np.fliplr(mcs[r1:r2, c1:c2].T), cmap=cmap)
+            cmap.set_under(color='lightyellow')
+
+            cbar = plt.colorbar(extend= 'max')
+            cbar.set_label(' Rain rate (mm/hr)')
+            plt.rcParams.update({'font.size': 25})
+
+            plt.savefig(working_dir + 'tracks/plots/mcs' + str(date) + str(time) + '_' + str(val) + '.png')
+            plt.close()
 
 
+#### This function plots the GPM derived rain rates of a specific 30 min time slot 
 
 
+def plot_gpm(lons,lats, prec, date, time ):
+    plt.figure(figsize=(20, 10))
 
+    cmap = plt.cm.get_cmap('plasma')
+    bounds= np.array([0, 0.5, 1 , 2, 3, 5, 7, 10])
+    norm = colors.BoundaryNorm(boundaries=bounds, ncolors= 256)
+
+
+    m = Basemap(projection='cyl', llcrnrlat=26.95,urcrnrlat=44.95, llcrnrlon=70.05, urcrnrlon=105.05,  resolution = 'c')
+    lon, lat =np.meshgrid(lons[:,0], lats[0,:])
+    xi,yi = m(lon,lat)
+    cs = m.pcolormesh(xi,yi, np.fliplr(prec.T), cmap=cmap, norm = norm, vmin= 0.01, vmax = 10 )
+    cmap.set_under(color='lightyellow')
+
+
+    xlabels=[70, 80, 90, 100]
+    ylabels= [ 27, 30, 35, 40]
+
+    plt.xticks([70, 80,90, 100], xlabels, fontsize=25)
+    plt.yticks([27,30, 35, 40],ylabels, fontsize=25)
+    plt.xlabel('Lon $^\circ$N')
+    plt.ylabel('Lat $^\circ$N')
+
+    # Plot TP boundary polyline from shapefile 
+    shapefile='/media/juli/Data/master_thesis/Master_thesis/data/DBATP/DBATP'
+    TP_bound=m.readshapefile(shapefile, 'boundary', color='black', linewidth=2.5)
+
+
+    cbar = plt.colorbar(extend= 'max')
+    cbar.set_label(' Rain rate (mm/hr)')
+    cbar.set_ticks(bounds)
+    labels = ['0', '0.5', '1', '2', '3', '5', '7', '10']
+    cbar.set_ticklabels(labels)
+
+    plt.rcParams.update({'font.size': 25})
+
+    plt.savefig(working_dir + 'tracks/plots/gpm_'+ str(date) + str(time) +  '.png')
+    plt.close()
 
