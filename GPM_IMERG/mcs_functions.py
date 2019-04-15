@@ -13,22 +13,30 @@ import glob
 import random 
 
 import matplotlib.pyplot as plt
-
+import cartopy
+from mpl_toolkits.basemap import Basemap
+import matplotlib.colors as colors
 
 import scipy
 from scipy import ndimage
+from scipy.stats import skew
 from scipy.ndimage import label, generate_binary_structure
 import matplotlib.pyplot as plt
 
 from netCDF4 import Dataset
 from collections import Counter 
 
-import pandas as pd
+import pandas as pd 
+
+
+import xarray as xr
+import xesmf as xe
 
 
 
-
-# This function creates a dictionary containing all hourly files within one month, keys are month for year and values are the corresponding files 
+## This function creates a dictionary containing all hourly files within one month for a specific year which should be processes. 
+# returns: files = dic with keys: YYYYMM and  values: list of hourly files for corresponding month
+# parameters: string containing working directory 
 
 
 def create_dic(working_dir):
@@ -53,28 +61,46 @@ def create_dic(working_dir):
 
 
 
-# This function reads in netcdf files and returns numpy arrays with precipitation for the specific time step and respective lon and lat grids
-# returns also strings with date and time for respective timestep 
+# This function reads in netcdf files and saves the precip data from a specific time step and respective lon and lat grids to a np array
+# returns: time_slot, prec, lons, lats= np arrays  (shape 351,181);  date and time = string 
+# parameters: string containing path to file and filename (without path to directory) 
 
 def read_in_netcdf(file, filename):
     date= filename[21:29]
     time= filename[31:35]
     dataset = Dataset(file)
-    #print(dataset.variables.keys())
     
     time_slot= np.array(dataset["precipitationCal"])
+    prec= np.array(dataset["precipitationCal"])
     lon= np.array(dataset["lon"])
     lat= np.array(dataset["lat"])
     # fill lat and lon values over entire grid 
     lons= np.repeat(np.expand_dims(lon, axis= 1), np.shape(lat)[0], axis= 1 )
     lats= np.repeat(np.expand_dims(lat, axis= 0), np.shape(lon)[0], axis= 0)
     dataset.close()
-
-    return time_slot, lons, lats, date, time
+    
+    return time_slot, prec, lons, lats, date, time
     
 
+## This function extracts only precip values above 3000 mASL, so that the tracking is limited to actual TP boundaries 
+# returns: time_slot = np array containing only positive precip values (mm/hr) for elevations above 3000 m ASL
+# parameters: np array with precip data for one time step 
 
-## This function assigns new labels to the identified MCS if labels already exist in label set (to avoid double naming)
+def extract_high_elevations(time_slot):
+    # open netCDF file with DEM in same resolution as GPM data 
+    file = '/media/juli/Data/master_thesis/Master_thesis/data/DEM_TP.tif/dem_GPM_format.nc'
+    ds = Dataset(file)  
+    elevations= np.array(ds["__xarray_dataarray_variable__"]).T
+    # set values to NaN, where elevation < 3000m ASL 
+    time_slot[elevations < 3000 ]= 0 
+    
+    return time_slot
+
+
+
+## This function assigns new labels to the identified MCS if labels already exist in label set (to avoid double naming
+# returns: mcs_labels = np array containing unique labels for all identified MCS, all_mcs_labels = updated set with all MCS labels from entire dataset 
+# parameters: mcs_labels = np array containing assigned labels from identification function, all_mcs_labels = existing set with all unique MCS labels 
 
 def assign_labels(mcs_labels,all_mcs_labels):
     unique_labels = np.unique(mcs_labels[mcs_labels > 0 ])
@@ -93,6 +119,9 @@ def assign_labels(mcs_labels,all_mcs_labels):
 
 
 ## This function updates the label set
+# returns:  all_mcs_labels = updated set with all MCS labels from entire dataset 
+# parameters: mcs_labels = all_mcs_labels = existing set with all unique MCS labels 
+
 
 def update_label_set(mcs_labels, all_mcs_labels):
     unique_labels = np.unique(mcs_labels[mcs_labels > 0 ])
@@ -104,10 +133,8 @@ def update_label_set(mcs_labels, all_mcs_labels):
 
 
 ## This function identifies MCS in one time slot based on a threshold rain rate and a threshold value for contiguous area
-# returns following arrays for each time slot:
-#  mcs : absolute rain rates 
-#  mcs_labels: numbers assigned for each MCS 
-# number_of_mcs: scalar containing the total number of detected mcs 
+# returns mcs = np array with  absolute rain rates for identified MCS, mcs_labels = np array with number labels assigned for each MCS, number_of_mcs =  scalar containing the total number of detected mcs
+# parameters: time_slot = np array with precip data for time step, threshold values for minimum rain rate and minimum area of contigous pixels, s = structure for how pixels can be connected 
 
 def mcs_identification(time_slot, threshold_prec, threshold_area, s):
     
@@ -116,7 +143,7 @@ def mcs_identification(time_slot, threshold_prec, threshold_area, s):
     ind_col= prec_loc[1]
 
     im= time_slot
-    im[ im < 7 ]=0
+    im[ im < threshold_prec ]=0
     potential_mcs, number_mcs = ndimage.label(im, structure = s) # array with nr. labels of contigous pixels above threshold and nr. of total identified MCS 
     
     x= potential_mcs[potential_mcs > 0 ]
@@ -133,17 +160,14 @@ def mcs_identification(time_slot, threshold_prec, threshold_area, s):
     mcs = time_slot
     mcs_labels= potential_mcs
 
-
     # updated number of detected MCS 
     number_mcs = np.shape(np.unique(potential_mcs))[0]-1
     
     return mcs, mcs_labels, number_mcs
 
-
-## This function compares identified MCS in the next step with MCS identified in the previous timestep
-# and tracks the movement based on an overlap criterium 
-# returns mcs_labels_next: updated array containing unique MCS labels (with same label for those pixel groups which have been identified belonging to the same system )
-
+## This function compares identified MCS in the next step with MCS identified in the previous timestep and tracks the movement based on an overlap criterium 
+# returns: mcs_labels_next = updated np array containing unique MCS labels (with same label for those pixel groups which have been identified belonging to the same system )
+# paramaters: mcs_labels, mcs_labels_next = np arrays ; threshhold_overlap which is the nr. of pixels which must overlap in order to decide that MCS precip belongs to previous time step 
 
 def update_labels(mcs_labels, mcs_labels_next, threshold_overlap): 
     for val in np.unique(mcs_labels_next[mcs_labels_next > 0 ]):
@@ -159,13 +183,12 @@ def update_labels(mcs_labels, mcs_labels_next, threshold_overlap):
     return mcs_labels_next
 
 
+## This function calculates and stores the lon and lat values of the system centers defined as the mean lon/lat of all pixels which belong to one identified system 
+# returns: pandas dataframe which contains the number tags for all identified MCS and corresponding statistics
+# parameters: mcs_labels, lats, lons, mcs, prec = np arrays, date, time = string, system_stats= old pandas dataframe which needs to be updated , s = structure of how pixels can be connected
 
 
-## This function calculates and stores the lon and lat values of the system centers defined as the mean lon/lat of all
-# pixels which belong to one identified system 
-# returns dictionary with the number tags for each identied MCS as key values and corresponding lat and lon values 
-    
-def store_statistics(mcs_labels, date, time, system_stats, lats, lons, mcs):
+def store_statistics(mcs_labels, date, time, system_stats, lats, lons, mcs, prec, s):
     for i in np.unique(mcs_labels[mcs_labels > 0]):
         area= 0 
         loc= np.where(mcs_labels == i)
@@ -178,8 +201,34 @@ def store_statistics(mcs_labels, date, time, system_stats, lats, lons, mcs):
             lon2 = np.deg2rad(lons[x,y] + 0.05)
             A= (np.sin(lat2) - np.sin(lat1)) * (lon2 - lon1) * R**2
             area+= A 
-        skew = scipy.stats.skew(mcs[mcs_labels ==i], axis=0, bias=True) 
-        data = [str(i), str(date), str(time), np.mean(lats[mcs_labels == i ]) , np.mean(lons[mcs_labels == i ]), np.nanmean(mcs[ mcs_labels == i ]), np.nanmax(mcs[ mcs_labels == i ]), np.nanmin(mcs[ mcs_labels == i ]), area, skew] 
+        # precipitation feature mean 
+        pf= prec
+        pf[ pf < 1.0 ]= 0
+        pf_labels, nr = ndimage.label(pf, structure = s) # array with nr. labels of contigous pixels above threshold and nr. of total identified MCS 
+        mask1 = mcs_labels== i
+        mask2 = pf_labels > 0 
+        feature= mask1*mask2
+        if True in feature:
+            a= pf_labels[mcs_labels ==i][0]
+            pf_mean = np.nanmean(pf[pf_labels == a])     # + np.mean(prec[mcs_labels == i]   
+            pf_tot = np.nansum(pf[pf_labels == a])/2
+            # precipitation feature area 
+            pf_area= 0 
+            loc= np.where(pf_labels == a)
+            for idx,x in enumerate(loc[0]):
+                y = loc[1][idx]             
+                lat1= np.deg2rad(lats[x,y]-0.05)
+                lat2 = np.deg2rad(lats[x,y]+0.05)
+                lon1= np.deg2rad(lons[x,y]-0.05)
+                lon2 = np.deg2rad(lons[x,y] + 0.05)
+                A= (np.sin(lat2) - np.sin(lat1)) * (lon2 - lon1) * R**2
+                pf_area+= A        
+        else:
+            pf_mean= 0.0
+            pf_area= 0.0
+    
+        skew = scipy.stats.skew(mcs[mcs_labels ==i], axis=0, bias=True, nan_policy='omit') 
+        data = [str(i), str(date), str(time), np.nanmean(lats[mcs_labels == i ]) , np.nanmean(lons[mcs_labels == i ]), np.nanmean(mcs[ mcs_labels == i ]), np.nansum(mcs[mcs_labels == i])/2,  np.nanmax(mcs[ mcs_labels == i ]), np.nanmin(mcs[ mcs_labels == i ]), area, skew, pf_mean, pf_area, pf_tot] 
         system_stats.loc[len(system_stats)] = data
         system_stats.ID = system_stats.ID.astype(int)   
         system_stats.date = system_stats.date.astype(int)
@@ -187,24 +236,26 @@ def store_statistics(mcs_labels, date, time, system_stats, lats, lons, mcs):
         
     return system_stats
 
+## This function removes all identified MCS which only persist for less than the defined time threshold value
+# returns: system_stats = pandas dataframe with with all statistics after removal from not long-lasting systems
+# parameters: all_mcs_labels = set , system_stats = pandas dataframe 
 
-# This function removes all identified MCS which only persist for less than the defined time threshold value 
-
-def timestep_con(all_mcs_labels, system_stats):
+def timestep_con(all_mcs_labels, system_stats, threshold_timesteps):
     for l in all_mcs_labels:
         mcs = system_stats.loc[system_stats['ID'] == l]  
         if mcs.shape[0] < threshold_timesteps:
             system_stats = system_stats[system_stats.ID != l]
     # sort values 
-    system_stats.sort_values(['ID', 'date', 'time'], ascending=True )       
-    return system_stats 
+    system_stats= system_stats.sort_values(['ID', 'date', 'time'], ascending=True )       
+    return system_stats
 
 
+## This function removes all identified MCS which do not contain at least one step where a size larger than 10 000 km2 is reached 
+# returns: system_stats = pandas dataframe with with all statistics after removal from not long-lasting systems
+# parameters: all_mcs_labels = set , system_stats = pandas dataframe
 
 
-# This function removes all identified MCS which do not contain at least one step where a size larger than 10 000 km2 is reached 
-
-def size_con(system_stats):
+def size_con(all_mcs_labels, system_stats):
     for l in all_mcs_labels:
         mcs = system_stats.loc[system_stats['ID'] == l]  
         if mcs.loc[mcs['area'] > threshold_max_area].shape[0] == 0:
@@ -214,8 +265,10 @@ def size_con(system_stats):
     return system_stats
 
 
+## This function saves the creates pandas dataframe with all detected MCS tracks within one month to a netcdf file
+# returns: data_as_xr = x array containing the created table with statistics about MCS within one month
+# parameters: system_stats = pandas dataframe, output_path = string containing path to output directory 
 
-## This function saves the creates pandas dataframe with all detected MCS tracks within one month to a netcdf file 
 
 def create_netcdf(system_stats, output_path):
     data_as_xr= system_stats.to_xarray()
@@ -224,15 +277,9 @@ def create_netcdf(system_stats, output_path):
 
 
 
-
-#### This function plots all detected MCS inzoomad 
-
+## This function plots all detected MCS inzoomad 
 
 def plot_mcs(lons, lats, mcs, mcs_labels, date, time):
-    #if val not in np.array(all_mcs_labels):
-     #   max_id = mcs[mcs == np.max(mcs)]
-      #  val = mcs_labels[mcs == max_id][0]   # get ID from MCS with strongest precipitation in this time slot 
-
         for val in np.unique(mcs_labels[mcs_labels > 0]):
 
             loc= np.where(mcs_labels == val)
@@ -267,7 +314,7 @@ def plot_mcs(lons, lats, mcs, mcs_labels, date, time):
             m = Basemap(projection='cyl', llcrnrlat=lats[0,c1],urcrnrlat=lats[0, c2-1], llcrnrlon= lons[r1,0], urcrnrlon=lons[r2-1,0],  resolution = 'c')
             lon, lat =np.meshgrid(lons[r1:r2,0], lats[0,c1:c2])
             xi,yi = m(lon,lat)
-            cs = plt.contourf(xi,yi, np.fliplr(mcs[r1:r2, c1:c2].T), cmap=cmap)
+            cs = plt.contourf(xi,yi, mcs[r1:r2, c1:c2].T, cmap=cmap)
             cmap.set_under(color='lightyellow')
 
             cbar = plt.colorbar(extend= 'max')
@@ -278,23 +325,23 @@ def plot_mcs(lons, lats, mcs, mcs_labels, date, time):
             plt.close()
 
 
-#### This function plots the GPM derived rain rates of a specific 30 min time slot 
 
+
+## This function plots rain rates (mm/hr) which are > 0.1 mm/hr  over entire plateau for one timestep 
 
 def plot_gpm(lons,lats, prec, date, time ):
     plt.figure(figsize=(20, 10))
 
     cmap = plt.cm.get_cmap('plasma')
-    bounds= np.array([0, 0.5, 1 , 2, 3, 5, 7, 10])
+    bounds= np.array([ 0.1, 0.5, 1 , 2, 3, 4, 5, 6, 7])
     norm = colors.BoundaryNorm(boundaries=bounds, ncolors= 256)
 
 
     m = Basemap(projection='cyl', llcrnrlat=26.95,urcrnrlat=44.95, llcrnrlon=70.05, urcrnrlon=105.05,  resolution = 'c')
     lon, lat =np.meshgrid(lons[:,0], lats[0,:])
     xi,yi = m(lon,lat)
-    cs = m.pcolormesh(xi,yi, np.fliplr(prec.T), cmap=cmap, norm = norm, vmin= 0.01, vmax = 10 )
+    cs = m.pcolormesh(xi,yi, prec.T, cmap=cmap, norm = norm, vmin= 0.1, vmax = 7 )
     cmap.set_under(color='lightyellow')
-
 
     xlabels=[70, 80, 90, 100]
     ylabels= [ 27, 30, 35, 40]
@@ -312,7 +359,7 @@ def plot_gpm(lons,lats, prec, date, time ):
     cbar = plt.colorbar(extend= 'max')
     cbar.set_label(' Rain rate (mm/hr)')
     cbar.set_ticks(bounds)
-    labels = ['0', '0.5', '1', '2', '3', '5', '7', '10']
+    labels = ['0.1', '0.5', '1', '2', '3', '4', '5','6',  '7']
     cbar.set_ticklabels(labels)
 
     plt.rcParams.update({'font.size': 25})
