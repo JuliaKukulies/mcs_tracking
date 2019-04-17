@@ -47,12 +47,13 @@ def create_dic(working_dir):
     for year in np.arange(2014,2019,1):
         for month in np.arange(1,13,1):
             if month < 10:
-                keys.append(str(year)+'0'+str(month))
+                k = str(year)+'0'+str(month)
+                keys.append(k)
+                values.append(glob.glob(working_dir + '3B-HHR.MS.MRG.3IMERG.' +  str(k) + '*.nc4'))
             else:
-                keys.append(str(year)+str(month))       
-
-    for k in keys:
-        values.append(glob.glob(working_dir + '3B-HHR.MS.MRG.3IMERG.' +  str(k) + '*.nc4'))
+                k = str(year)+str(month)
+                keys.append(k)
+                values.append(glob.glob(working_dir + '3B-HHR.MS.MRG.3IMERG.' +  str(k) + '*.nc4'))
 
     ## populate dictionary with keys and values 
     files= dict(zip(keys, values))
@@ -106,7 +107,7 @@ def assign_labels(mcs_labels,all_mcs_labels):
     unique_labels = np.unique(mcs_labels[mcs_labels > 0 ])
     for label in unique_labels:  # loop through unique labels 
         if label in all_mcs_labels:
-            new_label = range(1,5000)  # generate new identification nr if value already exists in set 
+            new_label = range(1,10000)  # generate new identification nr if value already exists in set 
             for new in new_label:
                 if new not in all_mcs_labels:
                     break
@@ -255,10 +256,10 @@ def timestep_con(all_mcs_labels, system_stats, threshold_timesteps):
 # parameters: all_mcs_labels = set , system_stats = pandas dataframe
 
 
-def size_con(all_mcs_labels, system_stats):
+def size_con(all_mcs_labels, system_stats, threshold_max_area):
     for l in all_mcs_labels:
         mcs = system_stats.loc[system_stats['ID'] == l]  
-        if mcs.loc[mcs['area'] > threshold_max_area].shape[0] == 0:
+        if mcs.loc[mcs['PF_area'] > threshold_max_area].shape[0] == 0:
             system_stats = system_stats[system_stats.ID != l]        
     # sort values 
     system_stats= system_stats.sort_values(['ID', 'date', 'time'], ascending=True )       
