@@ -49,11 +49,12 @@ def create_dic(working_dir):
             if month < 10:
                 k = str(year)+'0'+str(month)
                 keys.append(k)
-                values.append(glob.glob(working_dir + '3B-HHR.MS.MRG.3IMERG.' +  str(k) + '*.nc4'))
             else:
                 k = str(year)+str(month)
                 keys.append(k)
-                values.append(glob.glob(working_dir + '3B-HHR.MS.MRG.3IMERG.' +  str(k) + '*.nc4'))
+
+        for k in keys:
+            values.append(glob.glob(working_dir + '3B-HHR.MS.MRG.3IMERG.' +  str(k) + '*.nc4'))
 
     ## populate dictionary with keys and values 
     files= dict(zip(keys, values))

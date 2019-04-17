@@ -14,6 +14,8 @@ from mcs_functions import *
 
 ## Initialization of global variables
 
+i = 0
+
 # thresholds 
 threshold_prec= 7 # rain rate mm/hr 
 threshold_area= 20 # number of contigous pixels
@@ -43,20 +45,20 @@ files = create_dic(working_dir)
 
 ## loop through all hourly files within one month
 
-def __processing_files__(threshold_prec, threshold_area, threshold_timesteps,threshold_overlap, stats, system_stats, working_dir, all_mcs_labels, files):
+def __processing_files__(threshold_prec, threshold_area, threshold_timesteps,threshold_overlap, stats, system_stats, working_dir, all_mcs_labels, files, i):
     for month in files.keys():
 
         if len(files[month]) == 0:
             print('no files for month  ', month)
 
         else:  
-            i = 0 
+            #i = 0 
             for file in files[month]:
                 if i == 0: 
                     filename = file[50::]
                     # read in first netcdf file
                     time_slot, prec,  lons, lats, date, time = read_in_netcdf(file, filename)
-                    #time_slot= extract_high_elevations(time_slot)
+                    time_slot= extract_high_elevations(time_slot)
                     # plot over time slot 
                     #plot_gpm(lons, lats, prec, date, time)
                     # identify MCS in first netcdf file 
@@ -77,7 +79,7 @@ def __processing_files__(threshold_prec, threshold_area, threshold_timesteps,thr
                     filename_next = file_next[50::]
                     print('reading in.....', filename_next)
                     time_slot_next, prec_next, lons, lats, date, time = read_in_netcdf(file_next, filename_next)
-                    #time_slot_next= extract_high_elevations(time_slot_next)
+                    time_slot_next= extract_high_elevations(time_slot_next)
                     # plot over time slot 
                     #plot_gpm(lons, lats, prec_next, date, time)
                     # identify MCS in next timestep 
@@ -105,7 +107,7 @@ def __processing_files__(threshold_prec, threshold_area, threshold_timesteps,thr
             system_stats = system_stats.sort_values(['ID', 'date', 'time'] )
             system_stats = timestep_con(all_mcs_labels, system_stats, threshold_timesteps)
             #system_stats = size_con(all_mcs_labels, system_stats)
-            output_path= working_dir + '/tracks/'+   date[0:6]+ '_' + 'tracks.nc'
+            output_path= working_dir + '/tracks/tracking_7mm6h20elev'+   date[0:6]+ '_' + 'tracks.nc'
             create_netcdf(system_stats, output_path)    
 
 
@@ -113,7 +115,7 @@ def __processing_files__(threshold_prec, threshold_area, threshold_timesteps,thr
 
 
 # process files with elevation extraction
-__processing_files__(threshold_prec, threshold_area, threshold_timesteps,threshold_overlap, stats, system_stats, working_dir, all_mcs_labels, files)
+__processing_files__(threshold_prec, threshold_area, threshold_timesteps,threshold_overlap, stats, system_stats, working_dir, all_mcs_labels, files, i)
 
 
  # process files without elevation extraction 
