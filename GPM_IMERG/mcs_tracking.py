@@ -14,7 +14,7 @@ from mcs_functions import *
 
 ## Initialization of global variables
 
-i = 0
+t = 0
 
 # thresholds 
 threshold_prec= 7 # rain rate mm/hr 
@@ -45,16 +45,16 @@ files = create_dic(working_dir)
 
 ## loop through all hourly files within one month
 
-def __processing_files__(threshold_prec, threshold_area, threshold_timesteps,threshold_overlap, stats, system_stats, working_dir, all_mcs_labels, files, i):
+def __processing_files__(threshold_prec, threshold_area, threshold_timesteps,threshold_overlap, stats, system_stats, working_dir, all_mcs_labels, files, t):
     for month in files.keys():
 
         if len(files[month]) == 0:
             print('no files for month  ', month)
 
         else:  
-            #i = 0 
+            i = 0 
             for file in files[month]:
-                if i == 0: 
+                if t == 0: 
                     filename = file[50::]
                     # read in first netcdf file
                     time_slot, prec,  lons, lats, date, time = read_in_netcdf(file, filename)
@@ -100,8 +100,12 @@ def __processing_files__(threshold_prec, threshold_area, threshold_timesteps,thr
                         print('file does not contain any MCS ')
 
                     # control that next file is openenend and open labels become the MCS labels from previous timestep to compare with 
-                    i += 1 
-                    mcs_labels = mcs_labels_next 
+                    i += 1
+                    t += 1 
+                    mcs_labels = mcs_labels_next
+                    mcs = mcs_next
+                    time_slot = time_slot_next
+                    
 
             system_stats = system_stats.set_index('ID', drop = False )
             system_stats = system_stats.sort_values(['ID', 'date', 'time'] )
@@ -115,7 +119,7 @@ def __processing_files__(threshold_prec, threshold_area, threshold_timesteps,thr
 
 
 # process files with elevation extraction
-__processing_files__(threshold_prec, threshold_area, threshold_timesteps,threshold_overlap, stats, system_stats, working_dir, all_mcs_labels, files, i)
+__processing_files__(threshold_prec, threshold_area, threshold_timesteps,threshold_overlap, stats, system_stats, working_dir, all_mcs_labels, files, t)
 
 
  # process files without elevation extraction 

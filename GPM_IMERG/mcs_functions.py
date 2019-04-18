@@ -39,6 +39,9 @@ import xesmf as xe
 # parameters: string containing working directory 
 
 
+
+
+
 def create_dic(working_dir):
     files={}
     keys=[]
@@ -47,19 +50,22 @@ def create_dic(working_dir):
     for year in np.arange(2014,2019,1):
         for month in np.arange(1,13,1):
             if month < 10:
-                k = str(year)+'0'+str(month)
-                keys.append(k)
+                keys.append(str(year)+'0'+str(month))
             else:
-                k = str(year)+str(month)
-                keys.append(k)
+                keys.append(str(year)+str(month))       
 
-        for k in keys:
-            values.append(glob.glob(working_dir + '3B-HHR.MS.MRG.3IMERG.' +  str(k) + '*.nc4'))
+    for k in keys:
+        values.append(glob.glob(working_dir + '3B-HHR.MS.MRG.3IMERG.' +  str(k) + '*.nc4'))
 
     ## populate dictionary with keys and values 
     files= dict(zip(keys, values))
     
     return files 
+
+
+
+
+
 
 
 
