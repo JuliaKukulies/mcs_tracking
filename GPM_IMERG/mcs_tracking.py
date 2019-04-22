@@ -18,7 +18,7 @@ t = 0
 
 # thresholds 
 threshold_prec= 7 # rain rate mm/hr 
-threshold_area= 20 # number of contigous pixels
+threshold_area= 30 # number of contigous pixels
 threshold_timesteps= 6 # 6 consecutive timesteps = 3hr hr number of contiguous timesteps for which the MCS is identified 
 threshold_overlap = 1 # number of pixels for overlap 
 s = generate_binary_structure(2,2) # structure element which defined what type of connections are allowed in cluster finding,here: diagonal connections 
@@ -26,7 +26,7 @@ threshold_max_area = 10000
 
 
 # create empty pandas dataframe 
-stats= ['ID', 'date', 'time', 'lon', 'lat', 'PREC_mean','PREC_tot' ,'PREC_max', 'PREC_min', 'PREC_area', 'PREC_skew', 'PF_mean', 'PF_area', 'PF_tot']
+stats= ['ID', 'date', 'time', 'lon', 'lat', 'PREC_mean','PREC_tot' ,'PREC_max', 'PREC_min', 'PREC_area', 'PREC_skew', 'PF_mean', 'PF_area', 'PF_tot', 'ELEV_mean', 'ELEV_max']
 system_stats = pd.DataFrame(columns=stats)
 
 # set working directory 
@@ -58,7 +58,7 @@ def __processing_files__(threshold_prec, threshold_area, threshold_timesteps,thr
                     filename = file[50::]
                     # read in first netcdf file
                     time_slot, prec,  lons, lats, date, time = read_in_netcdf(file, filename)
-                    time_slot= extract_high_elevations(time_slot)
+                    time_slot, dem= extract_high_elevations(time_slot)
                     # plot over time slot 
                     #plot_gpm(lons, lats, prec, date, time)
                     # identify MCS in first netcdf file 
@@ -68,7 +68,7 @@ def __processing_files__(threshold_prec, threshold_area, threshold_timesteps,thr
                     # update label set 
                     all_mcs_labels= update_label_set(mcs_labels, all_mcs_labels)
                     # update MCS statistics 
-                    system_stats = store_statistics(mcs_labels, date, time, system_stats, lats, lons, mcs, prec, s)
+                    system_stats = store_statistics(mcs_labels, date, time, system_stats, lats, lons, mcs, prec, s, dem)
                     # save plots of detected MCS
                     #plot_mcs(lons, lats, mcs, mcs_labels, date, time)
                     #print('first file:', filename, system_stats.shape)
@@ -79,7 +79,7 @@ def __processing_files__(threshold_prec, threshold_area, threshold_timesteps,thr
                     filename_next = file_next[50::]
                     print('reading in.....', filename_next)
                     time_slot_next, prec_next, lons, lats, date, time = read_in_netcdf(file_next, filename_next)
-                    time_slot_next= extract_high_elevations(time_slot_next)
+                    time_slot_next, dem= extract_high_elevations(time_slot_next)
                     # plot over time slot 
                     #plot_gpm(lons, lats, prec_next, date, time)
                     # identify MCS in next timestep 
@@ -93,7 +93,7 @@ def __processing_files__(threshold_prec, threshold_area, threshold_timesteps,thr
                             # update label set 
                         all_mcs_labels= update_label_set(mcs_labels_next, all_mcs_labels)
                         # update MCS statistics 
-                        system_stats = store_statistics(mcs_labels_next, date, time, system_stats, lats, lons, mcs_next, prec_next, s)
+                        system_stats = store_statistics(mcs_labels_next, date, time, system_stats, lats, lons, mcs_next, prec_next, s, dem)
                         # save plots of detected MCS
                         #plot_mcs(lons, lats, mcs_next, mcs_labels_next, date, time)
                     else:
@@ -111,10 +111,8 @@ def __processing_files__(threshold_prec, threshold_area, threshold_timesteps,thr
             system_stats = system_stats.sort_values(['ID', 'date', 'time'] )
             system_stats = timestep_con(all_mcs_labels, system_stats, threshold_timesteps)
             #system_stats = size_con(all_mcs_labels, system_stats)
-            output_path= working_dir + '/tracks/tracking_7mm6h20elev'+   date[0:6]+ '_' + 'tracks.nc'
+            output_path= working_dir + '/tracks/tracking_7mm6h30elev'+   date[0:6]+ '_' + 'tracks.nc'
             create_netcdf(system_stats, output_path)    
-
-
 
 
 

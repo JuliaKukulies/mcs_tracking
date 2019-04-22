@@ -100,9 +100,10 @@ def extract_high_elevations(time_slot):
     ds = Dataset(file)  
     elevations= np.array(ds["__xarray_dataarray_variable__"]).T
     # set values to NaN, where elevation < 3000m ASL 
-    time_slot[elevations < 3000 ]= 0 
+    time_slot[elevations < 3000 ]= 0
+    dem = elevations
     
-    return time_slot
+    return time_slot, dem
 
 
 
@@ -196,7 +197,7 @@ def update_labels(mcs_labels, mcs_labels_next, threshold_overlap):
 # parameters: mcs_labels, lats, lons, mcs, prec = np arrays, date, time = string, system_stats= old pandas dataframe which needs to be updated , s = structure of how pixels can be connected
 
 
-def store_statistics(mcs_labels, date, time, system_stats, lats, lons, mcs, prec, s):
+def store_statistics(mcs_labels, date, time, system_stats, lats, lons, mcs, prec, s, dem):
     for i in np.unique(mcs_labels[mcs_labels > 0]):
         area= 0 
         loc= np.where(mcs_labels == i)
@@ -236,7 +237,7 @@ def store_statistics(mcs_labels, date, time, system_stats, lats, lons, mcs, prec
             pf_area= 0.0
     
         skew = scipy.stats.skew(mcs[mcs_labels ==i], axis=0, bias=True, nan_policy='omit') 
-        data = [str(i), str(date), str(time), np.nanmean(lats[mcs_labels == i ]) , np.nanmean(lons[mcs_labels == i ]), np.nanmean(mcs[ mcs_labels == i ]), np.nansum(mcs[mcs_labels == i])/2,  np.nanmax(mcs[ mcs_labels == i ]), np.nanmin(mcs[ mcs_labels == i ]), area, skew, pf_mean, pf_area, pf_tot] 
+        data = [str(i), str(date), str(time), np.nanmean(lats[mcs_labels == i ]) , np.nanmean(lons[mcs_labels == i ]), np.nanmean(mcs[ mcs_labels == i ]), np.nansum(mcs[mcs_labels == i])/2,  np.nanmax(mcs[ mcs_labels == i ]), np.nanmin(mcs[ mcs_labels == i ]), area, skew, pf_mean, pf_area, pf_tot, np.nanmean(dem[mcs_labels == i ]), np.nanmax(dem[mcs_labels ==i])   ] 
         system_stats.loc[len(system_stats)] = data
         system_stats.ID = system_stats.ID.astype(int)   
         system_stats.date = system_stats.date.astype(int)
