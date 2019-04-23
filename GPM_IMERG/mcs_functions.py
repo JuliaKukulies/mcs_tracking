@@ -106,6 +106,13 @@ def extract_high_elevations(time_slot):
     return time_slot, dem
 
 
+def get_elevations():
+        file = '/media/juli/Data/master_thesis/Master_thesis/data/DEM_TP.tif/dem_GPM_format.nc'
+        ds = Dataset(file)  
+        dem= np.array(ds["__xarray_dataarray_variable__"]).T
+        return dem 
+
+
 
 ## This function assigns new labels to the identified MCS if labels already exist in label set (to avoid double naming
 # returns: mcs_labels = np array containing unique labels for all identified MCS, all_mcs_labels = updated set with all MCS labels from entire dataset 
@@ -121,7 +128,10 @@ def assign_labels(mcs_labels,all_mcs_labels):
                     break
                 while new in all_mcs_labels:
                     new += 1 
-            mcs_labels[mcs_labels== label] = new  # assign unique values to assigned label which already exist         
+            mcs_labels[mcs_labels== label] = new  # assign unique values to assigned label which already exist
+            all_mcs_labels.add(new)
+        else:
+            all_mcs_labels.add(label)
             
     return mcs_labels, all_mcs_labels
 
@@ -168,9 +178,12 @@ def mcs_identification(time_slot, threshold_prec, threshold_area, s):
     time_slot[mask== False ]= 0 
     mcs = time_slot
     mcs_labels= potential_mcs
+  
+    
 
     # updated number of detected MCS 
     number_mcs = np.shape(np.unique(potential_mcs))[0]-1
+    
     
     return mcs, mcs_labels, number_mcs
 
@@ -180,16 +193,22 @@ def mcs_identification(time_slot, threshold_prec, threshold_area, s):
 
 def update_labels(mcs_labels, mcs_labels_next, threshold_overlap): 
     for val in np.unique(mcs_labels_next[mcs_labels_next > 0 ]):
-        overlap = 0 
+        overlap = 0
+        old_values = [] 
         loc= np.where(mcs_labels_next == val) 
         for i, x in enumerate(loc[0]):
             y= loc[1][i]
             if mcs_labels[x,y] > 0:
                 overlap += 1 
                 old_val = mcs_labels[x,y]
-        if overlap > threshold_overlap: 
-            mcs_labels_next[mcs_labels_next == val] = old_val # assign old MCS label if group contains overlap    
+                old_values.append(old_val)
+        if overlap > threshold_overlap:
+            old_val = max(set(old_values), key = old_values.count) 
+            mcs_labels_next[mcs_labels_next == val] = old_val # assign old MCS label if group contains overlap
+
     return mcs_labels_next
+
+
 
 
 ## This function calculates and stores the lon and lat values of the system centers defined as the mean lon/lat of all pixels which belong to one identified system 
@@ -239,9 +258,11 @@ def store_statistics(mcs_labels, date, time, system_stats, lats, lons, mcs, prec
         skew = scipy.stats.skew(mcs[mcs_labels ==i], axis=0, bias=True, nan_policy='omit') 
         data = [str(i), str(date), str(time), np.nanmean(lats[mcs_labels == i ]) , np.nanmean(lons[mcs_labels == i ]), np.nanmean(mcs[ mcs_labels == i ]), np.nansum(mcs[mcs_labels == i])/2,  np.nanmax(mcs[ mcs_labels == i ]), np.nanmin(mcs[ mcs_labels == i ]), area, skew, pf_mean, pf_area, pf_tot, np.nanmean(dem[mcs_labels == i ]), np.nanmax(dem[mcs_labels ==i])   ] 
         system_stats.loc[len(system_stats)] = data
-        system_stats.ID = system_stats.ID.astype(int)   
+        #system_stats = system_stats.append(data)
+        system_stats.label = system_stats.label.astype(int)   
         system_stats.date = system_stats.date.astype(int)
         system_stats.time = system_stats.time.astype(int)
+        print('system_stats appended', system_stats.shape)
         
     return system_stats
 
@@ -251,12 +272,12 @@ def store_statistics(mcs_labels, date, time, system_stats, lats, lons, mcs, prec
 
 def timestep_con(all_mcs_labels, system_stats, threshold_timesteps):
     for l in all_mcs_labels:
-        mcs = system_stats.loc[system_stats['ID'] == l]  
+        mcs = system_stats.loc[system_stats.label == l]  
         if mcs.shape[0] < threshold_timesteps:
-            system_stats = system_stats[system_stats.ID != l]
-    # sort values 
-    system_stats= system_stats.sort_values(['ID', 'date', 'time'], ascending=True )       
+            system_stats = system_stats[system_stats.label != l]
+            system_stats= system_stats.sort_values(['label', 'date', 'time'], ascending=True )       
     return system_stats
+
 
 
 ## This function removes all identified MCS which do not contain at least one step where a size larger than 10 000 km2 is reached 
@@ -266,12 +287,14 @@ def timestep_con(all_mcs_labels, system_stats, threshold_timesteps):
 
 def size_con(all_mcs_labels, system_stats, threshold_max_area):
     for l in all_mcs_labels:
-        mcs = system_stats.loc[system_stats['ID'] == l]  
-        if mcs.loc[mcs['PF_area'] > threshold_max_area].shape[0] == 0:
-            system_stats = system_stats[system_stats.ID != l]        
-    # sort values 
-    system_stats= system_stats.sort_values(['ID', 'date', 'time'], ascending=True )       
+        mcs = system_stats.loc[system_stats.label == l]  
+        if mcs.loc[mcs['PF_area'] > threshold_max_area].shape[0] > 0:
+            system_stats = system_stats[system_stats.label != l]        
+            # sort values 
+            system_stats= system_stats.sort_values(['label', 'date', 'time'], ascending=True )       
     return system_stats
+
+
 
 
 ## This function saves the creates pandas dataframe with all detected MCS tracks within one month to a netcdf file
@@ -281,7 +304,7 @@ def size_con(all_mcs_labels, system_stats, threshold_max_area):
 
 def create_netcdf(system_stats, output_path):
     data_as_xr= system_stats.to_xarray()
-    data_as_xr.to_netcdf(output_path, mode = 'w', format='netCDF4', unlimited_dims=['ID']) 
+    data_as_xr.to_netcdf(output_path, mode = 'w', format='netCDF4', unlimited_dims= ['label']) 
     return data_as_xr 
 
 
