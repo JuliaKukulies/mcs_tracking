@@ -1,3 +1,29 @@
+import numpy as np
+import os
+import glob 
+import random 
+
+import matplotlib.pyplot as plt
+import cartopy
+from mpl_toolkits.basemap import Basemap
+import matplotlib.colors as colors
+
+import scipy
+from scipy import ndimage
+from scipy.stats import skew
+from scipy.ndimage import label, generate_binary_structure
+import matplotlib.pyplot as plt
+
+from netCDF4 import Dataset
+from collections import Counter 
+
+import pandas as pd 
+
+
+import xarray as xr
+import xesmf as xe
+
+
 def plot_gpm(lons,lats, prec, date, time ):
     plt.figure(figsize=(20, 10))
 
@@ -57,33 +83,46 @@ def read_in_netcdf(file, filename):
 
 
 
+def create_dic(working_dir):
+
+    files={}
+    keys=[]
+    values=[]
+    for day in np.arange(20,21,1):
+        if day < 10:
+            keys.append('0'+str(day))
+        else:
+            keys.append(str(day))       
+
+    for k in keys:
+        values.append(glob.glob(working_dir + '3B-HHR.MS.MRG.3IMERG.201708' +  str(k) + '*.nc4'))
+
+
+    return files
 
 
 ###########################################################################################################################################
 
 
 
-files= ['3B-HHR.MS.MRG.3IMERG.20161229-S130000-E132959.0780.V05B.HDF5.nc4']
-
-
-
 working_dir= '/media/juli/Elements/GPM_IMERG_F_v05/GPM_finalrun/'
+
+files= create_dic(working_dir)
 
 
 ##################################################################################################################
 
-
- for file in files:
-     print(file)
-     filename = file[50::]
-     time_slot, prec,  lons, lats, date, time = read_in_netcdf(file, filename)
-     gpm_plot(lons, lats, prec, date, time )
+for file in files:
+    print(file)
+    filename = file[50::]
+    time_slot, prec,  lons, lats, date, time = read_in_netcdf(file, filename)
+    gpm_plot(lons, lats, prec, date, time )
 
 
 ########################################################################################################################
 
 
-
+print(files)
 
 
 
