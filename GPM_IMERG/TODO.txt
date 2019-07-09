@@ -1,32 +1,28 @@
 ## TODO
 
 # tracking algorithm and data analysis 
-1. start with very low thresholds to include as many data points as possible (no trheshold to die out), systems where rain rate gets less and then more need to be connected 
-2. visualization of tracked features, comparison of reanalysis and observation and look what data points I can actually capture with my algorithm (invert colorscale!)
-3. derive features: average speed, direction (vector diagrams for movement description), weight lon and lat mean by intensity, environmental impact/intensity duration, max rain rate/ duration, max rain rate/ speed
-4. maybe save as python daya types instead of netcdf?
+1. start with very low thresholds to include as many data points as possible (no trheshold to die out), systems where rain rate gets less and then more need to be connected => possible with tobac!  
+2. visualization of tracked features, comparison of reanalysis and observation and look what data points I can actually capture with my algorithm 
+3. maybe save as python daya types instead of netcdf? (h5 tabe in tobac)
+4. weight lon and lat mean center by intensity (this is done in tobac by weighting with the difference of the feature values and the threshold)
 
-
-
-
+Descriptive statistics
+- distribution of  speed
+- direction (vector diagrams for movement description)
+- environmental impact: intensity vs.  duration, max rain rate/ duration, max rain rate/ speed
 
 What questions do I want to answer:
-- find systems which produce a lot of precipitation at one location
+- identify systems which produce a lot of precipitation at one location
 - what fraction of precipitation are covered by the "systems"? 
-- how and why do the climatologies of systems differ between satellite and reanalysis ? 
-- what are the connections to other parameters and large-scale circulation? (check whether reanalysis parameters can not be used together with satellite data, when satellite and reanalysis can track the same large systems with heavy rainfall)
+- how and why do the climatologies of systems differ between satellite and reanalysis ? (check whether reanalysis parameters can not be used together with satellite data, when satellite and reanalysis can track the same large systems with heavy rainfall)
+- what are the connections to other parameters and large-scale circulation? 
 - if the datasets not match: what happens on the ground? explore the bias... 
-
 
 
 What can I already now see in the data:
 - much more "systems" south of TP (needs to be visualized and showed clearly!)
-- diurnal pulse 
-
-
-
-
+(- diurnal pulse )
 
 # more advanced features to include in algorithm:
 - linked lists
-- deal with merging and splitting 
+- deal with merging and splitting (maybe tobac version 2)
