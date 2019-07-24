@@ -12,6 +12,7 @@ Descriptive statistics
 - environmental impact: intensity vs.  duration, max rain rate/ duration, max rain rate/ speed
 
 What questions do I want to answer:
+- are meso-scale system characteristics somehow seen in precip data 
 - identify systems which produce a lot of precipitation at one location
 - what fraction of precipitation are covered by the "systems"? 
 - how and why do the climatologies of systems differ between satellite and reanalysis ? (check whether reanalysis parameters can not be used together with satellite data, when satellite and reanalysis can track the same large systems with heavy rainfall)
@@ -19,10 +20,16 @@ What questions do I want to answer:
 - if the datasets not match: what happens on the ground? explore the bias... 
 
 
+
+
 What can I already now see in the data:
 - much more "systems" south of TP (needs to be visualized and showed clearly!)
 (- diurnal pulse )
 
+
+
+
+
+
 # more advanced features to include in algorithm:
-- linked lists
 - deal with merging and splitting (maybe tobac version 2)
