@@ -64,14 +64,20 @@ file_list= glob.glob(savedir  + '/2006_2016/Features_CNRR_??????.h5')
 file_list.sort()
 
 ## recombination of features
-i = 0 
+i = 0
+end_frame =0 
 for file in file_list: 
     if i == 0:
         print(file)
         features_p = pd.read_hdf(file, 'table')
         Features = features_p
         i +=1
-        end_frame =  np.max(features_p['frame'])
+        
+        date= file[len(file)- 9 : len(file) - 3]
+        ds = Dataset(savedir+ '/Mask_Segmentation_precip' +date+'.nc')
+        mask= np.array(ds['segmentation_mask'])
+        end_frame += np.shape(mask)[0] - 1 
+        
     else:
         print(file, end_frame)
         features = pd.read_hdf(file, 'table')
@@ -80,11 +86,10 @@ for file in file_list:
         # append dataframes 
         Features = Features.append(features, ignore_index=True)
         # update last number in frame 
-        end_frame = np.max(features['frame'])
-        i +=1 
-        print(Features.shape)
-
-
+        date = file[len(file)- 9 :len(file) - 3]
+        ds= Dataset(savedir + '/Mask_Segmentation_precip' + date+ '.nc')
+        end_frame += np.shape(mask)[0] 
+        print(Features.shape, date )
 
 
 ## tracking
@@ -92,5 +97,5 @@ for file in file_list:
 Track=tobac.linking_trackpy(Features,Precip,dt=dt,dxy=dxy,**parameters_linking)
 # remove NaN tracks from feature space!!
 Track = Track.loc[Track.cell > 0]
-Track.to_hdf(os.path.join(savedir,'Tracks_CNRR_2006_2016_sorted.h5'),'table')
+Track.to_hdf(os.path.join(savedir,'Tracks_CNRR_2006_2016_updatedframes.h5'),'table')
 
