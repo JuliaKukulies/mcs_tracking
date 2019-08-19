@@ -2,7 +2,7 @@
 
 # This script aggregates high-resolution GPM files in netcdf4 format and sets a time axis and calendar, so that these can be used for e.g. trackpy/ cloud tracking with tobac. For tracking applications, the files are aggregated into monthly files for each individual year containing 30 min time steps. 
 
-for y in {2005..2019}
+for y in {2014..2018}
 do
     for m in {01..12}
     do
