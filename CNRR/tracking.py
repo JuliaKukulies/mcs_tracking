@@ -63,6 +63,9 @@ os.makedirs(plot_dir,exist_ok=True)
 file_list= glob.glob(savedir  + '/2006_2016/Features_CNRR_??????.h5')
 file_list.sort()
 
+print(file_list)
+
+
 ## recombination of features
 i = 0
 end_frame =0 
@@ -72,8 +75,8 @@ for file in file_list:
         features_p = pd.read_hdf(file, 'table')
         Features = features_p
         i +=1
-        
         date= file[len(file)- 9 : len(file) - 3]
+        print(date)
         ds = Dataset(savedir+ '/Mask_Segmentation_precip' +date+'.nc')
         mask= np.array(ds['segmentation_mask'])
         end_frame += np.shape(mask)[0] - 1 
@@ -88,6 +91,7 @@ for file in file_list:
         # update last number in frame 
         date = file[len(file)- 9 :len(file) - 3]
         ds= Dataset(savedir + '/Mask_Segmentation_precip' + date+ '.nc')
+        mask= np.array(ds['segmentation_mask'])
         end_frame += np.shape(mask)[0] 
         print(Features.shape, date )
 
