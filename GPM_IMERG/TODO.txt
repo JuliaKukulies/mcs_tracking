@@ -6,10 +6,15 @@
 3. maybe save as python daya types instead of netcdf? (h5 tabe in tobac)
 4. weight lon and lat mean center by intensity (this is done in tobac by weighting with the difference of the feature values and the threshold)
 
+
+
+
 Descriptive statistics
-- distribution of  speed
+- distribution of speed
 - direction (vector diagrams for movement description)
 - environmental impact: intensity vs.  duration, max rain rate/ duration, max rain rate/ speed
+
+
 
 What questions do I want to answer:
 - are meso-scale system characteristics somehow seen in precip data 
@@ -25,9 +30,6 @@ What questions do I want to answer:
 What can I already now see in the data:
 - much more "systems" south of TP (needs to be visualized and showed clearly!)
 (- diurnal pulse )
-
-
-
 
 
 
