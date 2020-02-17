@@ -22,7 +22,7 @@ import os
 # specify output directory 
 
 data_dir = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/'
-savedir = data_dir + 'Save'
+savedir = data_dir + 'Save/'
 os.makedirs(savedir,exist_ok=True)
 
 # temporal and spatial resolution
@@ -42,11 +42,15 @@ parameters_features['n_min_threshold']=50 # minimum nr of contiguous pixels for 
 parameters_features['target']= 'minimum'
 
 
+
 ## Segmentation
 # Dictionary containing keyword arguments for segmentation step:
 parameters_segmentation={}
+parameters_segmentation['target'] = 'minimum'
 parameters_segmentation['method']='watershed'
-parameters_segmentation['threshold']=260  # mm/h mixing ratio (until which threshold the area is taken into account)
+parameters_segmentation['threshold']=250  # mm/h mixing ratio (until which threshold the area is taken into account)
+
+
 
 
 ## Tracking 
@@ -65,32 +69,39 @@ parameters_linking['v_max']= 10
 #parameters_linking['d_min']=2000
 parameters_linking['d_min']=4*dxy # four times the grid spacing ?
 
-############################################################## Tracking : Feature detection and Segmentation ####################################################################################################
+############################################################## Tracking : Feature detection and Segmentation ###################################################################################################
 
 # list with all files by month
-file_list= glob.glob(data_dir + '2004/merg_??????.nc4')  
+file_list= glob.glob(data_dir + '????/merg_??????.nc4')  
 print('files in dataset:  ', len(file_list))
 file_list.sort()
 
+test_list = file_list[100:110]
+
+
+
+
 for file in file_list:
-    i = file[len(data_dir)+5::]
-    print('start process for file.....', file)
+    i = file[len(data_dir)+10:-4]
+    print('start process for file.....', i )
     ## DATA PREPARATION
     Precip=iris.load_cube(file, 'brightness_temperature')
+    # set values to NaN
+    Precip.data[Precip.data > 300] = np.nan
+    Precip.data[Precip.data < 0 ] = np.nan
     # FEATURE DETECTION
     print('starting feature detection based on multiple thresholds')
     Features=tobac.feature_detection_multithreshold(Precip,dxy,**parameters_features)
     print('feature detection done')
-    Features.to_hdf(os.path.join(savedir,'Features' + str(i) + '.h5'),'table')
-    print('features saved')
-
+    Features.to_hdf(os.path.join(savedir,'tbb230/Features_' + str(i) + '.h5'),'table')
+    print('features saved', Features.shape)
     
     # SEGMENTATION 
     print('Starting segmentation based on surface precipitation')
     Mask,Features_Precip=tobac.segmentation_2D(Features,Precip,dxy,**parameters_segmentation)
     print('segmentation based on surface precipitation performed, start saving results to files')
-    iris.save([Mask],os.path.join(savedir,'Mask_Segmentation_precip' + str(i) + '.nc'),zlib=True,complevel=4)                
-    Features_Precip.to_hdf(os.path.join(savedir,'Features_Precip' + str(i) + '.h5'),'table')
+    iris.save([Mask],os.path.join(savedir,'tbb230/Mask_Segmentation_precip' + str(i) + '.nc'),zlib=True,complevel=4)                
+    Features_Precip.to_hdf(os.path.join(savedir,'tbb230/Features_Precip' + str(i) + '.h5'),'table')
     print('segmentation surface precipitation performed and saved')
 
     
