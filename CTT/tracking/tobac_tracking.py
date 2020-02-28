@@ -48,7 +48,7 @@ parameters_features['target']= 'minimum'
 parameters_segmentation={}
 parameters_segmentation['target'] = 'minimum'
 parameters_segmentation['method']='watershed'
-parameters_segmentation['threshold']=250  # mm/h mixing ratio (until which threshold the area is taken into account)
+parameters_segmentation['threshold']=245  # mm/h mixing ratio (until which threshold the area is taken into account)
 
 
 
@@ -76,33 +76,33 @@ print('files in dataset:  ', len(file_list))
 file_list.sort()
 
 
-for file in file_list[6::]:
+for file in file_list[13::]:
     i = file[len(data_dir)+10:-4]
     month = file[len(data_dir)+14:-4]
 
     if month in ['01','02','12']:
-        parameters_segmentation['threshold'] = 240
-        print('winter month: segmentation threshold switched to 240k.')
+        parameters_segmentation['threshold'] = 235
+        print('winter month: segmentation threshold switched to 235k.')
 
     print('start process for file.....', i, month )
     ## DATA PREPARATION
     Precip=iris.load_cube(file, 'brightness_temperature')
     # set values to NaN
-    #Precip.data[Precip.data > 300] = np.nan
-    #Precip.data[Precip.data < 0 ] = np.nan
+    Precip.data[Precip.data > 300] = np.nan
+    Precip.data[Precip.data < 0 ] = np.nan
     # FEATURE DETECTION
     print('starting feature detection based on multiple thresholds')
     Features=tobac.feature_detection_multithreshold(Precip,dxy,**parameters_features)
     print('feature detection done')
-    Features.to_hdf(os.path.join(savedir,'tbb230/Features_' + str(i) + '.h5'),'table')
+    Features.to_hdf(os.path.join(savedir,'tbbtracking/Features_' + str(i) + '.h5'),'table')
     print('features saved', Features.shape)
     
     # SEGMENTATION 
     print('Starting segmentation based on surface precipitation')
     Mask,Features_Precip=tobac.segmentation_2D(Features,Precip,dxy,**parameters_segmentation)
     print('segmentation based on surface precipitation performed, start saving results to files')
-    iris.save([Mask],os.path.join(savedir,'tbb230/Mask_Segmentation_' + str(i) + '.nc'),zlib=True,complevel=4)                
-    Features_Precip.to_hdf(os.path.join(savedir,'tbb230/Features_cells_' + str(i) + '.h5'),'table')
+    iris.save([Mask],os.path.join(savedir,'tbbtracking/Mask_Segmentation_' + str(i) + '.nc'),zlib=True,complevel=4)                
+    Features_Precip.to_hdf(os.path.join(savedir,'tbbtracking/Features_cells_' + str(i) + '.h5'),'table')
     print('segmentation surface precipitation performed and saved')
 
     gc.collect()
