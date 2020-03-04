@@ -8,6 +8,10 @@
 
 # created by Julia Kukulies, julia.kukulies@gu.se 
 #####################################################################################################################
+import warnings
+
+warnings.simplefilter(action = "ignore", category = RuntimeWarning)
+
 
 import iris
 import numpy as np
@@ -76,7 +80,7 @@ print('files in dataset:  ', len(file_list))
 file_list.sort()
 
 
-for file in file_list[13::]:
+for file in file_list[52::]:
     i = file[len(data_dir)+10:-4]
     month = file[len(data_dir)+14:-4]
 
@@ -106,6 +110,10 @@ for file in file_list[13::]:
     print('segmentation surface precipitation performed and saved')
 
     gc.collect()
+    del Precip
+    del Features
+    del Mask
+    del Features_Precip
     
     
 ############################################################################## Linking Features ##############################################################################################
