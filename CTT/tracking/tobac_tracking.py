@@ -80,9 +80,9 @@ print('files in dataset:  ', len(file_list))
 file_list.sort()
 
 
-for file in file_list[52::]:
-    i = file[len(data_dir)+10:-4]
-    month = file[len(data_dir)+14:-4]
+for f in file_list[101::]:
+    i = f[len(data_dir)+10:-4]
+    month = f[len(data_dir)+14:-4]
 
     if month in ['01','02','12']:
         parameters_segmentation['threshold'] = 235
@@ -90,7 +90,7 @@ for file in file_list[52::]:
 
     print('start process for file.....', i, month )
     ## DATA PREPARATION
-    Precip=iris.load_cube(file, 'brightness_temperature')
+    Precip=iris.load_cube(f, 'brightness_temperature')
     # set values to NaN
     Precip.data[Precip.data > 300] = np.nan
     Precip.data[Precip.data < 0 ] = np.nan
@@ -104,7 +104,7 @@ for file in file_list[52::]:
     # SEGMENTATION 
     print('Starting segmentation based on surface precipitation')
     Mask,Features_Precip=tobac.segmentation_2D(Features,Precip,dxy,**parameters_segmentation)
-    print('segmentation based on surface precipitation performed, start saving results to files')
+    print('segmentation based on surface precipitation performed, start saving results to fs')
     iris.save([Mask],os.path.join(savedir,'tbbtracking/Mask_Segmentation_' + str(i) + '.nc'),zlib=True,complevel=4)                
     Features_Precip.to_hdf(os.path.join(savedir,'tbbtracking/Features_cells_' + str(i) + '.h5'),'table')
     print('segmentation surface precipitation performed and saved')
@@ -120,39 +120,39 @@ for file in file_list[52::]:
 
 ## Recombindation of feature dataframes (update framenumbers)
 
-# # read in HDF5 files with saved features
-# file_list = glob.glob(savedir  + '/Features_Precip??????.h5')  
-# file_list.sort()
-# print('nr. of monthly feature files:', len(file_list))
+# # read in HDF5 fs with saved features
+# f_list = glob.glob(savedir  + '/Features_Precip??????.h5')  
+# f_list.sort()
+# print('nr. of monthly feature fs:', len(f_list))
 
 
 # i = 0 
 # frames = 0 
 
-# for file in file_list: 
+# for f in f_list: 
 #     if i == 0:
-#         Features = pd.read_hdf(file, 'table')
+#         Features = pd.read_hdf(f, 'table')
 #         # read in data mask with segments for tracked cells 
-#         date= file[len(file)-9: len(file)-3]
+#         date= f[len(f)-9: len(f)-3]
 #         ds = Dataset(savedir+ '/Mask_Segmentation_precip'+date+'.nc')
 #         mask = np.array(ds['segmentation_mask'])  
 #         # update total nr of frames 
 #         frames += np.shape(mask)[0] -1
 #         i = 1 
-#         print('file for: ',date, 'rows: ',features.shape[0], 'frames: ', frames)
+#         print('f for: ',date, 'rows: ',features.shape[0], 'frames: ', frames)
 
-#     features = pd.read_hdf(file, 'table')
+#     features = pd.read_hdf(f, 'table')
 #     # update frame number and make sure they are sequential
 #     features['frame'] = features['frame']  + frames
 #     # append dataframes 
 #     Features = Features.append(features, ignore_index=True)      
 #     # read in data mask with segments for tracked cells 
-#     date= file[len(file)-9: len(file)-3]
+#     date= f[len(f)-9: len(f)-3]
 #     ds = Dataset(savedir+ '/Mask_Segmentation_precip'+date+'.nc')
 #     mask = np.array(ds['segmentation_mask'])  
 #     #update total nr of frames
 #     frames += np.shape(mask)[0]
-#     print('file for: ',date, 'rows: ',features.shape[0], 'frames: ', frames)
+#     print('f for: ',date, 'rows: ',features.shape[0], 'frames: ', frames)
 
     
 # ## Perform trjactory linking with trackpy 
