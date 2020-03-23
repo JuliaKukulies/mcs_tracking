@@ -80,7 +80,7 @@ print('files in dataset:  ', len(file_list))
 file_list.sort()
 
 
-for f in file_list[101::]:
+for f in file_list[189::]:
     i = f[len(data_dir)+10:-4]
     month = f[len(data_dir)+14:-4]
 
