@@ -2,9 +2,6 @@
 # at a 0.1 x 0.1 degree resolution. Mesoscale convective systems are identified based on a rain rate and area threshold value and tracked on threshold values for overlapping area and persistence through
 # contiguous timesteps. The output data is stored in 2D monthly netCDF4 files, containing the mean lon and lat values and precipitation statistics for each system, whereby each system has a unique ID value.
 
-
-
-
 ###################################### Functions #################################################################################################
 
 import numpy as np

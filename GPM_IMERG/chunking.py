@@ -56,7 +56,7 @@ dxy= 14126.0
 dt = 1800 
 
 # loop through files for features detection and creation of segmentation mask 
-for file in file_list[7::]:
+for file in file_list[34::]:
     i = file[44:50]
     print('start process for file.....', file)
     
