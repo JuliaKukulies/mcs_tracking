@@ -75,12 +75,12 @@ parameters_linking['d_min']=4*dxy # four times the grid spacing ?
 ############################################################## Tracking : Feature detection and Segmentation ###################################################################################################
 import glob 
 # list with all files by month
-file_list= glob.glob(data_dir + '????/merg_??????.nc4')  
+file_list= glob.glob(data_dir + '2019/merg_??????.nc4')  
 print('files in dataset:  ', len(file_list))
 file_list.sort()
 
 
-for f in file_list[189::]:
+for f in file_list:
     i = f[len(data_dir)+10:-4]
     month = f[len(data_dir)+14:-4]
 
@@ -109,52 +109,8 @@ for f in file_list[189::]:
     Features_Precip.to_hdf(os.path.join(savedir,'tbbtracking/Features_cells_' + str(i) + '.h5'),'table')
     print('segmentation surface precipitation performed and saved')
 
-    gc.collect()
     del Precip
     del Features
     del Mask
     del Features_Precip
-    
-    
-############################################################################## Linking Features ##############################################################################################
-
-## Recombindation of feature dataframes (update framenumbers)
-
-# # read in HDF5 fs with saved features
-# f_list = glob.glob(savedir  + '/Features_Precip??????.h5')  
-# f_list.sort()
-# print('nr. of monthly feature fs:', len(f_list))
-
-
-# i = 0 
-# frames = 0 
-
-# for f in f_list: 
-#     if i == 0:
-#         Features = pd.read_hdf(f, 'table')
-#         # read in data mask with segments for tracked cells 
-#         date= f[len(f)-9: len(f)-3]
-#         ds = Dataset(savedir+ '/Mask_Segmentation_precip'+date+'.nc')
-#         mask = np.array(ds['segmentation_mask'])  
-#         # update total nr of frames 
-#         frames += np.shape(mask)[0] -1
-#         i = 1 
-#         print('f for: ',date, 'rows: ',features.shape[0], 'frames: ', frames)
-
-#     features = pd.read_hdf(f, 'table')
-#     # update frame number and make sure they are sequential
-#     features['frame'] = features['frame']  + frames
-#     # append dataframes 
-#     Features = Features.append(features, ignore_index=True)      
-#     # read in data mask with segments for tracked cells 
-#     date= f[len(f)-9: len(f)-3]
-#     ds = Dataset(savedir+ '/Mask_Segmentation_precip'+date+'.nc')
-#     mask = np.array(ds['segmentation_mask'])  
-#     #update total nr of frames
-#     frames += np.shape(mask)[0]
-#     print('f for: ',date, 'rows: ',features.shape[0], 'frames: ', frames)
-
-    
-# ## Perform trjactory linking with trackpy 
-# Track=tobac.linking_trackpy(Features,Precip,dt=dt,dxy=dxy,**parameters_linking)
-# Track.to_hdf(os.path.join(savedir,'Tracks.h5'),'table')
+    gc.collect()

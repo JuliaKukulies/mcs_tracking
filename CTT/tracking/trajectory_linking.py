@@ -13,6 +13,9 @@ import datetime
 from netCDF4 import Dataset
 import tobac
 
+from scipy import ndimage
+from scipy.ndimage import generate_binary_structure
+
 ##########################################################################
 
 ## Import elevation file for 3000 m boundary 
@@ -32,6 +35,9 @@ dem_mask.coords['mask'] = (('lon', 'lat'), dem_mask)
 parameters_linking={}          
 dt = 1800
 dxy = 14126.0
+
+s = generate_binary_structure(2,2)
+
 parameters_linking['adaptive_stop']=0.2                                                                 
 parameters_linking['adaptive_step']=0.95                                                                
 parameters_linking['extrapolate']=0                                                                     
@@ -41,7 +47,7 @@ parameters_linking['subnetwork_size']= 100000 # maximum size of subnetwork used 
 parameters_linking['memory']= 0                                                                          
 parameters_linking['time_cell_min']= 12*dt                                                              
 parameters_linking['method_linking']='predict'                                                          
-parameters_linking['method_detection']='threshold'                                                    
+#parameters_linking['method_detection']='threshold'                                                    
 parameters_linking['v_max']= 20                                                                        
 #parameters_linking['d_min']=2000                                                                      
 parameters_linking['d_min']=4*dxy # four times the grid spacing ?                                       
@@ -57,7 +63,7 @@ file = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/2001/merg_200106.
 ds= Dataset(file)
 tbb = np.array(ds['Tb']) 
 
-years = np.arange(2001,2020)
+years = np.arange(2002,2020)
 years = years.astype(str)
 
 # perform trajectory linking per year
@@ -121,7 +127,7 @@ for year in years:
     tracks.to_hdf(os.path.join(savedir,'Tracks_tbb_'+year+'_cold_core.h5'),'table')  
     print('cold core filtered.', tracks.shape)
 
-    ## Heavy rain core
+    ########################################## Heavy rain core#######################################
     removed = 0
     tracks['rain_flag'] = 0 
     tracks['tp_flag'] = 0
@@ -130,10 +136,10 @@ for year in years:
 
     pd.options.mode.chained_assignment = None 
 
-    # loop through cells 
+    # loop through cells in detected feature frame 
     for cell in np.unique(tracks.cell.values):
         subset = tracks[tracks.cell == cell]
-        print('checking heavy rain cores for cell:', cell, subset.shape)
+        #print('checking heavy rain cores for cell:', cell, subset.shape)
 
         precipitation_flag = 0
 
@@ -142,12 +148,12 @@ for year in years:
             # idx is the timestep index for respective timestep or mask file
 
             # open corresponding precip and mask file 
-            year = subset.time.values[0].year 
-            month = subset.time.values[0].month
+            year = subset.time[subset.idx == idx].values[0].year 
+            month = subset.time[subset.idx == idx].values[0].month
             if len(str(month))== 1: 
                 month= '0' + str(month)
 
-            # check whether precip is in area of segmentation mask, where segmentation mask== feature number 
+            # check whether precip is in area of segmentation mask, where segmentation mask == feature number 
             maskfile = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tbbtracking/Mask_Segmentation_'+str(year) + str(month) + '.nc'
             precipfile = '/media/juli/Elements/gpm_v06/'+str(year)+'/gpm_imerg_'+ str(year)+str(month)+'_monthly.nc4'
 
@@ -167,49 +173,54 @@ for year in years:
                 featureid= subset.feature[subset.idx== idx].values[0]
 
                 # get locations from all contiguous fields in segmentation mask which belong to cell which contain the featureid from tracked cells
-                # note: this is necessary, because the segmentation mask still ocntains different feature ids within one cloud cell 
-                labels, nr = nd.image.label(seg, structure = s)
-                label = np.unique(labels[seg== featureid])[0]
-                seg_mask = labels.where(labels == label)
+                # note: this is necessary, because the segmentation mask still contains different feature ids within one cloud cell 
+                labels, nr = ndimage.label(seg, structure = s)
 
+                if featureid not in seg:
+                    np.savetxt(savedir+ 'features_'+ str(year) +str(month)+ str(cell) + '.txt', [idx, featureid])
+                    continue
+                else:
                 
-                # create mask as coordinates 
-                seg_mask.coords['mask'] = (('lon', 'lat'), seg_mask)
-                # apply mask on precip data to extract precip values for feature in cell 
-                precip_values = prec.T.where(seg_mask.coords['mask'].values > 1)
-                arr= precip_values.values.flatten()
-                values = arr[~np.isnan(arr)] # values contains the amount of grid cells with precip > 5mm/h
-                total_precip = np.nansum(values[values > 0]) * 0.5
-                
-                tracks['total_precip'][tracks.feature == featureid] = total_precip 
+                    label = np.unique(labels[ seg == featureid])[0]
+                    seg_mask = seg.where(labels == label)
 
-                rain_features = values[values > 5].shape[0]
-                tracks['convective_precip'][tracks.feature == featureid] = np.nansum(values[values > 5])*0.5
-                tracks['rain_flag'][tracks.feature == featureid]  = rain_features
+                    # create mask as coordinates 
+                    seg_mask.coords['mask'] = (('lon', 'lat'), seg_mask)
+                    # apply mask on precip data to extract precip values for feature in cell 
+                    precip_values = prec.T.where(seg_mask.coords['mask'].values > 1)
+                    arr= precip_values.values.flatten()
+                    values = arr[~np.isnan(arr)] # values contains the amount of grid cells with precip > 5mm/h
+                    total_precip = np.nansum(values[values > 0]) * 0.5
 
-                # Elevation mask  
-                elevation_values = dem_mask.where(seg_mask.coords['mask'].values > 1)
-                arr= elevation_values.values.flatten()
-                values = arr[~np.isnan(arr)]
+                    tracks['total_precip'][tracks.feature == featureid] = total_precip 
 
-                mountain_features = values[values >=3000].shape[0]
-                tracks['tp_flag'][tracks.feature == featureid] =  mountain_features
+                    rain_features = values[values > 5].shape[0]
+                    tracks['convective_precip'][tracks.feature == featureid] = np.nansum(values[values > 5])*0.5
+                    tracks['rain_flag'][tracks.feature == featureid]  = rain_features
 
-                if rain_features >= 10: 
-                    precipitation_flag += rain_features
+                    # Elevation mask  
+                    elevation_values = dem_mask.where(seg_mask.coords['mask'].values > 1)
+                    arr= elevation_values.values.flatten()
+                    values = arr[~np.isnan(arr)]
+
+                    mountain_features = values[values >=3000].shape[0]
+                    tracks['tp_flag'][tracks.feature == featureid] =  mountain_features
+
+                    if rain_features >= 10: 
+                        precipitation_flag += rain_features
             else:
                 np.savetxt(savedir+ 'shape_'+ str(year) +str(month)+'txt', [precip.shape, mask.shape])
 
-            if precipitation_flag ==  0: 
-                # remove corresponding cell from track dataframe 
-                tracks = tracks.drop(tracks[tracks.cell == cell].index)
-                print(cell, ' removed.')
-                removed += 1 
+        if precipitation_flag  ==  0:
+            # remove corresponding cell from track dataframe 
+            tracks = tracks.drop(tracks[tracks.cell == cell].index)
+            print(cell, ' removed.')
+            removed += 1 
 
-            else:
-                print('heavy rain core present in:  ', cell, rain_features)
-                
-    print(removed, ' cells removed in total.')
+        #else:
+            #print('heavy rain core present in:  ', cell, rain_features)
+
+    #print(removed, ' cells removed in total.')
     tracks.to_hdf(os.path.join(savedir,'Tracks_tbb_'+ str(year) +'_heavyraincorefiltered.h5'),'table' ) 
 
     print('trajectory linking for year  '+ str(year) +'performed.') 

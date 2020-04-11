@@ -30,13 +30,13 @@ parameters_features['position_threshold']='weighted_diff' # diff between specifi
 parameters_features['min_num']=3 #? 
 parameters_features['min_distance']=0 # minimum distance between features 
 
+
 parameters_features['sigma_threshold']=0.5 # for slightly smoothing (gaussian filter)
 parameters_features['n_erosion_threshold']=0 # pixel erosion (for more robust results)
 
-parameters_features['threshold']=[5, 10  ] #mm/h, step-wise threshold for feature detection 
+
+parameters_features['threshold']=[5, 10, 15] #mm/h, step-wise threshold for feature detection 
 parameters_features['n_min_threshold']=10 # minimum nr of contiguous pixels for thresholds, 10 pixels = ca. 2000 km2
-
-
 
 
 # Dictionary containing keyword arguments for segmentation step:
@@ -51,12 +51,12 @@ file_list= glob.glob('/media/juli/Elements/gpm_v06/????/gpm_imerg*monthly*.nc4')
 print('files in dataset:  ', len(file_list))
 file_list.sort()
 
-
 dxy= 14126.0
 dt = 1800 
 
+
 # loop through files for features detection and creation of segmentation mask 
-for file in file_list[34::]:
+for file in file_list:
     i = file[44:50]
     print('start process for file.....', file)
     

@@ -23,7 +23,7 @@ import gc
 
 # specify output directory 
 data_dir = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/'
-savedir = data_dir + 'Save/tbbtracking'
+savedir = data_dir + 'Save/tbbtracking/'
 os.makedirs(savedir,exist_ok=True)
 
 # temporal and spatial resolution
@@ -73,9 +73,8 @@ import glob
 
 
 def get_files(year):
-    import glob 
     # list with all files by month
-    file_list= glob.glob(data_dir + year+ '/merg_??????.nc4')
+    file_list= glob.glob(data_dir + year+ '/merg_*')
     file_list.sort()
     return file_list
 
@@ -99,22 +98,23 @@ def segmentation(Features,Precip, i):
 
     
 def main(): 
-    file_list = get_files('2016')
-    for f in file_list:
+    file_list = get_files(year = '2016')
+    for f in file_list[3::]:
         i = f[len(data_dir)+10:-4]
         month = f[len(data_dir)+14:-4]
 
         if month in ['01','02','12']:
             parameters_segmentation['threshold'] = 235
             print('winter month: segmentation threshold switched to 235k.')
+
         print('start process for file.....', i, month )
 
         
         ## load data 
         Precip=iris.load_cube(f, 'brightness_temperature')
         # set missing values 
-        Precip.data[Precip.data > 300] = np.nan
-        Precip.data[Precip.data < 0 ] = np.nan
+        #Precip.data[Precip.data > 300] = np.nan
+        #Precip.data[Precip.data < 0 ] = np.nan
 
         Features = feature_detection(Precip, i)
         segmentation(Features, Precip, i)        
