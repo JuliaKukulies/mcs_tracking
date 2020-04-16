@@ -47,7 +47,7 @@ parameters_segmentation['threshold']=1  # mm/h mixing ratio (until which thresho
 
 # get list with all files by month
 import glob
-file_list= glob.glob('/media/juli/Elements/gpm_v06/????/gpm_imerg*monthly*.nc4')  
+file_list= glob.glob('/media/juli/Elements/gpm_v06/2019/gpm_imerg*monthly*.nc4')  
 print('files in dataset:  ', len(file_list))
 file_list.sort()
 

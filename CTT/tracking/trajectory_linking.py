@@ -43,14 +43,14 @@ parameters_linking['adaptive_step']=0.95
 parameters_linking['extrapolate']=0                                                                     
 parameters_linking['order']=1
 
-parameters_linking['subnetwork_size']= 100000 # maximum size of subnetwork used for linking               
-parameters_linking['memory']= 0                                                                          
+parameters_linking['subnetwork_size']= 1000000 # maximum size of subnetwork used for linking               
+parameters_linking['memory']= 1                                                                          
 parameters_linking['time_cell_min']= 12*dt                                                              
 parameters_linking['method_linking']='predict'                                                          
 #parameters_linking['method_detection']='threshold'                                                    
-parameters_linking['v_max']= 20                                                                        
+parameters_linking['v_max']= 100                                                                        
 #parameters_linking['d_min']=2000                                                                      
-parameters_linking['d_min']=4*dxy # four times the grid spacing ?                                       
+#parameters_linking['d_min']=4*dxy # four times the grid spacing ?                                       
             
 ## Recombination of feature dataframes (update framenumbers)
 savedir= '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tbbtracking'
@@ -63,7 +63,7 @@ file = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/2001/merg_200106.
 ds= Dataset(file)
 tbb = np.array(ds['Tb']) 
 
-years = np.arange(2002,2020)
+years = np.arange(2009,2019)
 years = years.astype(str)
 
 # perform trajectory linking per year
@@ -109,7 +109,7 @@ for year in years:
     Track=tobac.linking_trackpy(Features,tbb,dt=dt,dxy=dxy,**parameters_linking)
     # remove nan values to only save the linked features 
     Track = Track[Track.cell >= 0]
-    Track.to_hdf(os.path.join(savedir,'Tracks_'+ year +'.h5'),'table')
+    Track.to_hdf(os.path.join(savedir,'Tracks__'+ year +'.h5'),'table')
 
     tracks= Track 
     print(np.unique(tracks.cell.values).shape[0], '  unique cloud cells. Features:', tracks.shape[0])
@@ -124,7 +124,7 @@ for year in years:
         if subset[subset.threshold_value <=200].shape[0] == 0:
             tracks.drop(tracks.loc[tracks['cell']== i].index, inplace=True)
 
-    tracks.to_hdf(os.path.join(savedir,'Tracks_tbb_'+year+'_cold_core.h5'),'table')  
+    tracks.to_hdf(os.path.join(savedir,'Tracks_'+year+'_cold_core.h5'),'table')  
     print('cold core filtered.', tracks.shape)
 
     ########################################## Heavy rain core#######################################
@@ -189,12 +189,12 @@ for year in years:
                     # apply mask on precip data to extract precip values for feature in cell 
                     precip_values = prec.T.where(seg_mask.coords['mask'].values > 1)
                     arr= precip_values.values.flatten()
-                    values = arr[~np.isnan(arr)] # values contains the amount of grid cells with precip > 5mm/h
+                    values = arr[~np.isnan(arr)] # values contains the amount of grid cells with precip
                     total_precip = np.nansum(values[values > 0]) * 0.5
 
                     tracks['total_precip'][tracks.feature == featureid] = total_precip 
 
-                    rain_features = values[values > 5].shape[0]
+                    rain_features = values[values >= 5].shape[0]
                     tracks['convective_precip'][tracks.feature == featureid] = np.nansum(values[values > 5])*0.5
                     tracks['rain_flag'][tracks.feature == featureid]  = rain_features
 
@@ -221,7 +221,7 @@ for year in years:
             #print('heavy rain core present in:  ', cell, rain_features)
 
     #print(removed, ' cells removed in total.')
-    tracks.to_hdf(os.path.join(savedir,'Tracks_tbb_'+ str(year) +'_heavyraincorefiltered.h5'),'table' ) 
+    tracks.to_hdf(os.path.join(savedir,'Tracks_'+ str(year) +'_heavyraincorefiltered.h5'),'table' ) 
 
     print('trajectory linking for year  '+ str(year) +'performed.') 
 
