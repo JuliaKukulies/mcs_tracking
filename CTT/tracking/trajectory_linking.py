@@ -45,7 +45,7 @@ parameters_linking['order']=1
 
 parameters_linking['subnetwork_size']= 1000000 # maximum size of subnetwork used for linking               
 parameters_linking['memory']= 1                                                                          
-parameters_linking['time_cell_min']= 12*dt                                                              
+parameters_linking['time_cell_min']= 6*dt                                                              
 parameters_linking['method_linking']='predict'                                                          
 #parameters_linking['method_detection']='threshold'                                                    
 parameters_linking['v_max']= 100                                                                        
@@ -53,7 +53,7 @@ parameters_linking['v_max']= 100
 #parameters_linking['d_min']=4*dxy # four times the grid spacing ?                                       
             
 ## Recombination of feature dataframes (update framenumbers)
-savedir= '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tbbtracking'
+savedir= '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/smallscale'
 
 
 
@@ -63,7 +63,7 @@ file = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/2001/merg_200106.
 ds= Dataset(file)
 tbb = np.array(ds['Tb']) 
 
-years = np.arange(2009,2019)
+years = np.arange(2000,2020)
 years = years.astype(str)
 
 # perform trajectory linking per year
@@ -77,7 +77,7 @@ for year in years:
     i = 0 
     frames = 0 
 
-    for file in file_list: 
+    for file in file_list[0:6]: 
         if i == 0:
             Features = pd.read_hdf(file, 'table')
             # read in data mask with segments for tracked cells 
@@ -154,11 +154,11 @@ for year in years:
                 month= '0' + str(month)
 
             # check whether precip is in area of segmentation mask, where segmentation mask == feature number 
-            maskfile = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tbbtracking/Mask_Segmentation_'+str(year) + str(month) + '.nc'
+            maskfile = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/smallscale/Mask_Segmentation_'+str(year) + str(month) + '.nc'
             precipfile = '/media/juli/Elements/gpm_v06/'+str(year)+'/gpm_imerg_'+ str(year)+str(month)+'_monthly.nc4'
 
             mask = xr.open_dataarray(maskfile)
-            mask= mask[:,1:,1:].T        
+            mask= mask[:,:,:].T        
             precip = xr.open_dataarray(precipfile)
             precip = precip[:,1:,1:].T
 
