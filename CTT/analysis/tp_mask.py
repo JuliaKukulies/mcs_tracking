@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
 import xarray as xr
-
+import warnings
+warnings.filterwarnings('ignore')
 
 
 
@@ -70,11 +71,6 @@ def plateau_mask(tracks):
                 mountain_features = values[values >=3000].shape[0]
                 tracks['tp_flag'][tracks.feature == featureid] =  mountain_features
 
-                if mountain_features == 0 : 
-                    tracks = tracks.drop(tracks[tracks.cell == cell].index)
-                else:
-                    tracks['tp_flag'][tracks.feature == featureid] =  mountain_features
-
                 precipfile = '/media/juli/Elements/gpm_v06/'+str(year)+'/gpm_imerg_'+ str(year)+str(month)+'_monthly.nc4'
                 precip = xr.open_dataarray(precipfile)
                 precip = precip[:,1:,1:].T
@@ -99,6 +95,7 @@ years = np.arange(2000,2019)
 for y in years:
     # read in precip tracks 
     f = '/media/juli/Elements/gpm_v06/Save/2000_2019/Tracks_precipitation_GPM_'+ str(y) + '.h5'
+    print(f)
     ptracks= pd.read_hdf(f, 'table')
     # remove nan values to only save the linked features                                                                                                      
     ptracks = ptracks[ptracks.cell >= 0]
