@@ -91,7 +91,7 @@ def plateau_mask(tracks):
     return tracks 
 
    
-years = np.arange(2000,2019)
+years = np.arange(2019,2020)
 for y in years:
     # read in precip tracks 
     f = '/media/juli/Elements/gpm_v06/Save/2000_2019/Tracks_precipitation_GPM_'+ str(y) + '.h5'
