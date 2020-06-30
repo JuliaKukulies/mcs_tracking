@@ -77,7 +77,7 @@ for year in years:
     i = 0 
     frames = 0 
 
-    for file in file_list[0:6]: 
+    for file in file_list: 
         if i == 0:
             Features = pd.read_hdf(file, 'table')
             # read in data mask with segments for tracked cells 
@@ -206,7 +206,7 @@ for year in years:
                     mountain_features = values[values >=3000].shape[0]
                     tracks['tp_flag'][tracks.feature == featureid] =  mountain_features
 
-                    if rain_features >= 10: 
+                    if rain_features >= 5: 
                         precipitation_flag += rain_features
             else:
                 np.savetxt(savedir+ 'shape_'+ str(year) +str(month)+'txt', [precip.shape, mask.shape])
@@ -221,7 +221,7 @@ for year in years:
             #print('heavy rain core present in:  ', cell, rain_features)
 
     #print(removed, ' cells removed in total.')
-    tracks.to_hdf(os.path.join(savedir,'Tracks_'+ str(year) +'_heavyraincorefiltered.h5'),'table' ) 
+    tracks.to_hdf(os.path.join(savedir,'Tracks_'+ str(year) +'_heavyraincore5.h5'),'table' ) 
 
     print('trajectory linking for year  '+ str(year) +'performed.') 
 
