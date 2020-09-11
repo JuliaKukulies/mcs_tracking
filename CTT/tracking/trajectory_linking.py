@@ -194,8 +194,8 @@ for year in years:
 
                     tracks['total_precip'][tracks.feature == featureid] = total_precip 
 
-                    rain_features = values[values >= 5].shape[0]
-                    tracks['convective_precip'][tracks.feature == featureid] = np.nansum(values[values > 5])*0.5
+                    rain_features = values[values >= 1].shape[0]
+                    tracks['convective_precip'][tracks.feature == featureid] = np.nansum(values[values >= 5])*0.5
                     tracks['rain_flag'][tracks.feature == featureid]  = rain_features
 
                     # Elevation mask  
@@ -206,7 +206,7 @@ for year in years:
                     mountain_features = values[values >=3000].shape[0]
                     tracks['tp_flag'][tracks.feature == featureid] =  mountain_features
 
-                    if rain_features >= 5: 
+                    if rain_features >= 10: 
                         precipitation_flag += rain_features
             else:
                 np.savetxt(savedir+ 'shape_'+ str(year) +str(month)+'txt', [precip.shape, mask.shape])
@@ -221,7 +221,7 @@ for year in years:
             #print('heavy rain core present in:  ', cell, rain_features)
 
     #print(removed, ' cells removed in total.')
-    tracks.to_hdf(os.path.join(savedir,'Tracks_'+ str(year) +'_heavyraincore5.h5'),'table' ) 
+    tracks.to_hdf(os.path.join(savedir,'Tracks_'+ str(year) +'_heavyraincore1mm.h5'),'table' ) 
 
     print('trajectory linking for year  '+ str(year) +'performed.') 
 
