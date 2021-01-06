@@ -33,8 +33,6 @@ os.makedirs(savedir,exist_ok=True)
 dt= 1800
 dxy = 14126.0
 
-
-
 ## Feature detection
 # Dictionary containing keyword options (could also be directly given to the function)
 parameters_features={}
@@ -78,7 +76,7 @@ print('files in dataset:  ', len(file_list))
 file_list.sort()
 
 
-for f in file_list[0::]:
+for f in file_list[105::]:
     i = f[len(data_dir)+10:-4]
     month = f[len(data_dir)+14:-4]
 

@@ -22,8 +22,8 @@ import gc
 ############################### Parameters ###############################################################################################
 
 # specify output directory 
-data_dir = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/'
-savedir = data_dir + 'Save/tbbtracking/'
+data_dir = '/media/juli/Elements/gpm_v06/'
+savedir = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/precip_tracking/'
 os.makedirs(savedir,exist_ok=True)
 
 # temporal and spatial resolution
@@ -38,9 +38,9 @@ parameters_features['position_threshold']='weighted_diff' # diff between specifi
 parameters_features['min_distance']=0 # minimum distance between features 
 parameters_features['sigma_threshold']=0.5 # for slightly smoothing (gaussian filter)
 parameters_features['n_erosion_threshold']=0 # pixel erosion (for more robust results)
-parameters_features['threshold']=[230, 225, 220, 215, 210, 205, 200, 195, 190] #mm/h, step-wise threshold for feature detection 
-parameters_features['n_min_threshold']=100 # minimum nr of contiguous pixels for thresholds, 10 pixels = ca. 2000 km2, 50 pixel ca. 10 000 km2
-parameters_features['target']= 'minimum'
+parameters_features['threshold']=[1,2,3] #mm/h, step-wise threshold for feature detection 
+parameters_features['n_min_threshold']=18 # minimum nr of contiguous pixels for thresholds, 10 pixels = ca. 2000 km2, 50 pixel ca. 10 000 km2
+parameters_features['target']= 'maximum'
 
 
 ## Segmentation
@@ -48,8 +48,7 @@ parameters_features['target']= 'minimum'
 parameters_segmentation={}
 parameters_segmentation['target'] = 'minimum'
 parameters_segmentation['method']='watershed'
-parameters_segmentation['threshold']=245  # mm/h mixing ratio (until which threshold the area is taken into account)
-
+parameters_segmentation['threshold']= 1  # mm/h mixing ratio (until which threshold the area is taken into account)
 
 
 ## Tracking 
@@ -61,7 +60,7 @@ parameters_linking['extrapolate']=0
 parameters_linking['order']=1
 parameters_linking['subnetwork_size']= 1000 # maximum size of subnetwork used for linking 
 parameters_linking['memory']=0
-parameters_linking['time_cell_min']= 12*dt 
+parameters_linking['time_cell_min']= 6*dt 
 parameters_linking['method_linking']='predict'
 #parameters_linking['method_detection']='threshold'
 parameters_linking['v_max']= 10
@@ -74,7 +73,7 @@ import glob
 
 def get_files(year):
     # list with all files by month
-    file_list= glob.glob(data_dir + year+ '/merg_*')
+    file_list= glob.glob(data_dir + year+ '/gpm_*monthly.nc4')
     file_list.sort()
     return file_list
 
@@ -97,26 +96,32 @@ def segmentation(Features,Precip, i):
     print('segmentation surface precipitation performed and saved')
 
     
-def main(): 
-    file_list = get_files(year = '2016')
-    for f in file_list[3::]:
-        i = f[len(data_dir)+10:-4]
-        month = f[len(data_dir)+14:-4]
-
-        if month in ['01','02','12']:
-            parameters_segmentation['threshold'] = 235
-            print('winter month: segmentation threshold switched to 235k.')
-
-        print('start process for file.....', i, month )
-
+def main(y): 
+    file_list = get_files(year = y)
+    file_list.sort()
+    for f in file_list[0:9]:
+        i= f[34:50]
+        print('start process for file.....', i)
         
         ## load data 
-        Precip=iris.load_cube(f, 'brightness_temperature')
-        # set missing values 
+        Precip=iris.load_cube(f, 'precipitationCal')
         #Precip.data[Precip.data > 300] = np.nan
-        #Precip.data[Precip.data < 0 ] = np.nan
+        Precip.data[Precip.data< 0] = np.nan
 
-        Features = feature_detection(Precip, i)
-        segmentation(Features, Precip, i)        
+        print('starting feature detection based on multiple thresholds')
+        Features=tobac.feature_detection_multithreshold(Precip,dxy,**parameters_features)
+        print('feature detection done')
+        Features.to_hdf(os.path.join(savedir,'Features_' + str(i) + '.h5'),'table')
+        print('features saved', Features.shape)
 
-main()
+        print('Starting segmentation based on surface precipitation')
+        Mask,Features_Precip=tobac.segmentation_2D(Features,Precip,dxy,**parameters_segmentation)
+        iris.save([Mask],os.path.join(savedir,'Mask_Segmentation_' + str(i) + '.nc'),zlib=True,complevel=4)
+        Features_Precip.to_hdf(os.path.join(savedir,'Features_cells_' + str(i) + '.h5'),'table')
+        print('segmentation surface precipitation performed and saved')
+
+        del Precip
+        
+
+for y in np.arange(2002,2020):
+    main(str(y))

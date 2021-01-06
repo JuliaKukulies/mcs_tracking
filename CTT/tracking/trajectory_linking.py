@@ -53,14 +53,14 @@ parameters_linking['v_max']= 100
 #parameters_linking['d_min']=4*dxy # four times the grid spacing ?                                       
             
 ## Recombination of feature dataframes (update framenumbers)
-savedir= '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/smallscale'
+savedir= '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tcs'
 
 
 
 # get brightness temp file 
 from netCDF4 import Dataset
-file = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/2001/merg_200106.nc4'
-ds= Dataset(file)
+f = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/2001/merg_200106.nc4'
+ds= Dataset(f)
 tbb = np.array(ds['Tb']) 
 
 years = np.arange(2000,2020)
@@ -121,7 +121,7 @@ for year in years:
     ######
     for i in np.unique(tracks.cell.values):
         subset = tracks[tracks.cell == i]
-        if subset[subset.threshold_value <=200].shape[0] == 0:
+        if subset[subset.threshold_value <= 200].shape[0] == 0 :
             tracks.drop(tracks.loc[tracks['cell']== i].index, inplace=True)
 
     tracks.to_hdf(os.path.join(savedir,'Tracks_'+year+'_cold_core.h5'),'table')  
@@ -134,27 +134,27 @@ for year in years:
     tracks['total_precip']= 0
     tracks['convective_precip'] = 0
 
-    pd.options.mode.chained_assignment = None 
+    pd.options.mode.chained_assignment = None
+
+    tracks['timestr'] = pd.to_datetime(tracks.time)
 
     # loop through cells in detected feature frame 
     for cell in np.unique(tracks.cell.values):
         subset = tracks[tracks.cell == cell]
         #print('checking heavy rain cores for cell:', cell, subset.shape)
-
         precipitation_flag = 0
 
         # loop through timesteps of features for specific cell 
         for idx in subset.idx.values: 
             # idx is the timestep index for respective timestep or mask file
-
-            # open corresponding precip and mask file 
-            year = subset.time[subset.idx == idx].values[0].year 
-            month = subset.time[subset.idx == idx].values[0].month
+            # open corresponding precip and mask file
+            year = subset.timestr[subset.idx == idx].dt.year.values[0] 
+            month = subset.timestr[subset.idx == idx].dt.month.values[0]
             if len(str(month))== 1: 
                 month= '0' + str(month)
 
             # check whether precip is in area of segmentation mask, where segmentation mask == feature number 
-            maskfile = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/smallscale/Mask_Segmentation_'+str(year) + str(month) + '.nc'
+            maskfile = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tcs/Mask_Segmentation_'+str(year) + str(month) + '.nc'
             precipfile = '/media/juli/Elements/gpm_v06/'+str(year)+'/gpm_imerg_'+ str(year)+str(month)+'_monthly.nc4'
 
             mask = xr.open_dataarray(maskfile)
@@ -194,7 +194,7 @@ for year in years:
 
                     tracks['total_precip'][tracks.feature == featureid] = total_precip 
 
-                    rain_features = values[values >= 1].shape[0]
+                    rain_features = values[values >= 3].shape[0]
                     tracks['convective_precip'][tracks.feature == featureid] = np.nansum(values[values >= 5])*0.5
                     tracks['rain_flag'][tracks.feature == featureid]  = rain_features
 
@@ -206,7 +206,7 @@ for year in years:
                     mountain_features = values[values >=3000].shape[0]
                     tracks['tp_flag'][tracks.feature == featureid] =  mountain_features
 
-                    if rain_features >= 10: 
+                    if rain_features >= 5: 
                         precipitation_flag += rain_features
             else:
                 np.savetxt(savedir+ 'shape_'+ str(year) +str(month)+'txt', [precip.shape, mask.shape])
@@ -221,7 +221,7 @@ for year in years:
             #print('heavy rain core present in:  ', cell, rain_features)
 
     #print(removed, ' cells removed in total.')
-    tracks.to_hdf(os.path.join(savedir,'Tracks_'+ str(year) +'_heavyraincore1mm.h5'),'table' ) 
+    tracks.to_hdf(os.path.join(savedir,'Tracks_'+ str(year) +'_heavyraincore3mm.h5'),'table' ) 
 
     print('trajectory linking for year  '+ str(year) +'performed.') 
 

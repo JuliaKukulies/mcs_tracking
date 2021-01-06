@@ -12,7 +12,7 @@ import warnings
 
 warnings.simplefilter(action = "ignore", category = RuntimeWarning)
 
-
+import dask.array as da 
 import iris
 import numpy as np
 import pandas as pd
@@ -29,7 +29,7 @@ data_dir = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/'
 savedir = data_dir + 'Save/'
 os.makedirs(savedir,exist_ok=True)
 
-# temporal and spatial resolution
+# temporal and spatial resolution (in seconds and meter)
 dt= 1800
 dxy = 14126.0
 
@@ -41,10 +41,9 @@ parameters_features['position_threshold']='weighted_diff' # diff between specifi
 parameters_features['min_distance']=0 # minimum distance between features 
 parameters_features['sigma_threshold']=0.5 # for slightly smoothing (gaussian filter)
 parameters_features['n_erosion_threshold']=0 # pixel erosion (for more robust results)
-parameters_features['threshold']=[230, 225, 220, 215, 210, 205, 200, 195, 190] #mm/h, step-wise threshold for feature detection 
-parameters_features['n_min_threshold']=100 # minimum nr of contiguous pixels for thresholds, 10 pixels = ca. 2000 km2, 50 pixel ca. 10 000 km2
+parameters_features['threshold']=[220, 218, 216, 214, 212, 210, 205, 200,195, 190] #mm/h, step-wise threshold for feature detection 
+parameters_features['n_min_threshold']=250 # minimum nr of contiguous pixels for thresholds, 10 pixels = ca. 2000 km2, 50 pixel ca. 10 000 km2
 parameters_features['target']= 'minimum'
-
 
 
 ## Segmentation
@@ -52,8 +51,7 @@ parameters_features['target']= 'minimum'
 parameters_segmentation={}
 parameters_segmentation['target'] = 'minimum'
 parameters_segmentation['method']='watershed'
-parameters_segmentation['threshold']=245  # mm/h mixing ratio (until which threshold the area is taken into account)
-
+parameters_segmentation['threshold']=221  # mm/h mixing ratio (until which threshold the area is taken into account)
 
 
 ## Tracking 
@@ -65,7 +63,7 @@ parameters_linking['extrapolate']=0
 parameters_linking['order']=1
 parameters_linking['subnetwork_size']= 1000 # maximum size of subnetwork used for linking 
 parameters_linking['memory']=0
-parameters_linking['time_cell_min']= 12*dt 
+parameters_linking['time_cell_min']= 6*dt 
 parameters_linking['method_linking']='predict'
 #parameters_linking['method_detection']='threshold'
 parameters_linking['v_max']= 10
@@ -75,38 +73,49 @@ parameters_linking['d_min']=4*dxy # four times the grid spacing ?
 ############################################################## Tracking : Feature detection and Segmentation ###################################################################################################
 import glob 
 # list with all files by month
-file_list= glob.glob(data_dir + '2019/merg_??????.nc4')  
+file_list= glob.glob(data_dir + '????/merg_??????.nc4')  
 print('files in dataset:  ', len(file_list))
 file_list.sort()
 
 
-for f in file_list:
+for f in file_list[35::]:
     i = f[len(data_dir)+10:-4]
     month = f[len(data_dir)+14:-4]
-
-    if month in ['01','02','12']:
-        parameters_segmentation['threshold'] = 235
-        print('winter month: segmentation threshold switched to 235k.')
+    
+    # if threshold should change with season 
+    #if month in ['01','02','12']:
+        #parameters_segmentation['threshold'] = 235
+        #print('winter month: segmentation threshold switched to 235k.')
 
     print('start process for file.....', i, month )
     ## DATA PREPARATION
     Precip=iris.load_cube(f, 'brightness_temperature')
     # set values to NaN
-    Precip.data[Precip.data > 300] = np.nan
-    Precip.data[Precip.data < 0 ] = np.nan
+    #Precip.data[Precip.data > 300] = np.nan
+    #Precip.data[Precip.data < 0 ] = np.nan
+
+    for i in range(Precip.shape[0]):
+        part = Precip.data[i,:,:]
+        part[part < 0] = np.nan
+        Precip.data[i] = part 
+
+    #data = Precip.data
+    #data = da.where(data < 0, data, np.nan)
+    #Precip = Precip.copy(data=data)
+
     # FEATURE DETECTION
     print('starting feature detection based on multiple thresholds')
     Features=tobac.feature_detection_multithreshold(Precip,dxy,**parameters_features)
     print('feature detection done')
-    Features.to_hdf(os.path.join(savedir,'tbbtracking/Features_' + str(i) + '.h5'),'table')
+    Features.to_hdf(os.path.join(savedir,'tbbtracking_revised/Features_' + str(i) + '.h5'),'table')
     print('features saved', Features.shape)
     
     # SEGMENTATION 
     print('Starting segmentation based on surface precipitation')
     Mask,Features_Precip=tobac.segmentation_2D(Features,Precip,dxy,**parameters_segmentation)
     print('segmentation based on surface precipitation performed, start saving results to fs')
-    iris.save([Mask],os.path.join(savedir,'tbbtracking/Mask_Segmentation_' + str(i) + '.nc'),zlib=True,complevel=4)                
-    Features_Precip.to_hdf(os.path.join(savedir,'tbbtracking/Features_cells_' + str(i) + '.h5'),'table')
+    iris.save([Mask],os.path.join(savedir,'tbbtracking_revised/Mask_Segmentation_' + str(i) + '.nc'),zlib=True,complevel=4)                
+    Features_Precip.to_hdf(os.path.join(savedir,'tbbtracking_revised/Features_cells_' + str(i) + '.h5'),'table')
     print('segmentation surface precipitation performed and saved')
 
     del Precip
