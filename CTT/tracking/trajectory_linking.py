@@ -206,7 +206,7 @@ for year in years:
                     mountain_features = values[values >=3000].shape[0]
                     tracks['tp_flag'][tracks.feature == featureid] =  mountain_features
 
-                    if rain_features >= 5: 
+                    if rain_features >= 1: 
                         precipitation_flag += rain_features
             else:
                 np.savetxt(savedir+ 'shape_'+ str(year) +str(month)+'txt', [precip.shape, mask.shape])
@@ -221,7 +221,7 @@ for year in years:
             #print('heavy rain core present in:  ', cell, rain_features)
 
     #print(removed, ' cells removed in total.')
-    tracks.to_hdf(os.path.join(savedir,'Tracks_'+ str(year) +'_heavyraincore3mm.h5'),'table' ) 
+    tracks.to_hdf(os.path.join(savedir,'Tracks_'+ str(year) +'_heavyraincore3mmocc.h5'),'table' ) 
 
     print('trajectory linking for year  '+ str(year) +'performed.') 
 

@@ -4,15 +4,38 @@ import numpy as np
 import pandas as pd
 
 
-# function to get seasonal curve of tracks
-def get_seasonal_cycle(preciptracks):
-    preciptracks['month']= preciptracks.timestr.dt.month
+# function to get seasonal curve of features
+def get_seasonal_features(tracks):
+    tracks['month']= tracks.timestr.dt.month
     seasonal=[]
     for m in np.arange(1,13):
-        monthly_count = preciptracks[preciptracks.month== m].shape[0]   # for frequency 
+        monthly_count = tracks[tracks.month== m].shape[0]   # for frequency 
         #meanvalue= np.nanmean(preciptracks.total_precip.values)    # for mean values of specific variable 
         seasonal.append(monthly_count)
     return seasonal
+
+
+
+def count_tracks(tracks):
+    count = 0 
+    for y in np.unique(tracks.timestr.dt.year):
+        subset = tracks[tracks.timestr.dt.year == y]
+        count += np.unique(subset.cell.values).shape[0]
+    return count 
+
+
+
+def get_seasonal_curve(tracks):
+    tracks['month']= tracks.timestr.dt.month
+    td= np.timedelta64(0, 'ns')
+    init_features = tracks[tracks.time_cell == td]
+    seasonal=[]    
+    for m in np.arange(1,13):
+        monthly_count = init_features[init_features.month== m].shape[0] 
+        seasonal.append(monthly_count)
+    return seasonal
+
+
 
 def get_lifetime(tracks):
     lt= []
@@ -22,7 +45,7 @@ def get_lifetime(tracks):
             hours= ytracks[ytracks.cell== cell].shape[0] * 0.5
             lt.append(hours)
     lt = np.array(lt)
-    lt= np.histogram(lt, bins= np.arange(6,49)[::2]) 
+    lt= np.histogram(lt, bins= np.arange(3,51)[::2]) 
     print('lifetime histo calculated.')
     return lt
 
@@ -59,6 +82,7 @@ def get_diurnal_cycle(preciptracks):
     return diurnal
 
 
+
 def get_diurnal_init(preciptracks):
     preciptracks['hour']= preciptracks.timestr.dt.hour
     diurnal=[]
@@ -68,6 +92,7 @@ def get_diurnal_init(preciptracks):
     return diurnal
 
 
+
 def get_diurnal_diss(preciptracks):
     preciptracks['hour']= preciptracks.timestr.dt.hour
     diurnal=[]
@@ -75,6 +100,8 @@ def get_diurnal_diss(preciptracks):
         init_hour = preciptracks[preciptracks.cell == cell].hour.values[-1]
         diurnal.append(init_hour)
     return diurnal
+
+
 
 def get_max_values(tracks):
     tracks['hour']= tracks.timestr.dt.hour
