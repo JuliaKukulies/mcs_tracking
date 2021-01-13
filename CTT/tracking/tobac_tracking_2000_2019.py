@@ -99,7 +99,7 @@ def segmentation(Features,Precip, i):
 def main(y): 
     file_list = get_files(year = y)
     file_list.sort()
-    for f in file_list[0:9]:
+    for f in file_list[5:9]:
         i= f[34:50]
         print('start process for file.....', i)
         
@@ -123,5 +123,5 @@ def main(y):
         del Precip
         
 
-for y in np.arange(2002,2020):
+for y in np.arange(2016,2020):
     main(str(y))
