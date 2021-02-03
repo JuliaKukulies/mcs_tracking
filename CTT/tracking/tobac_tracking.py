@@ -41,7 +41,7 @@ parameters_features['position_threshold']='weighted_diff' # diff between specifi
 parameters_features['min_distance']=0 # minimum distance between features 
 parameters_features['sigma_threshold']=0.5 # for slightly smoothing (gaussian filter)
 parameters_features['n_erosion_threshold']=0 # pixel erosion (for more robust results)
-parameters_features['threshold']=[220, 218, 216, 214, 212, 210, 205, 200,195, 190] #mm/h, step-wise threshold for feature detection 
+parameters_features['threshold']=[221, 218, 216, 214, 212, 210, 205, 200,195, 190] #mm/h, step-wise threshold for feature detection 
 parameters_features['n_min_threshold']=250 # minimum nr of contiguous pixels for thresholds, 10 pixels = ca. 2000 km2, 50 pixel ca. 10 000 km2
 parameters_features['target']= 'minimum'
 
@@ -78,8 +78,8 @@ print('files in dataset:  ', len(file_list))
 file_list.sort()
 
 
-for f in file_list[99::]:
-    i = f[len(data_dir)+10:-4]
+for f in file_list[83::]:
+    year = f[len(data_dir)+10:-4]
     month = f[len(data_dir)+14:-4]
     
     # if threshold should change with season 
@@ -87,7 +87,7 @@ for f in file_list[99::]:
         #parameters_segmentation['threshold'] = 235
         #print('winter month: segmentation threshold switched to 235k.')
 
-    print('start process for file.....', i, month )
+    print('start process for file.....', year, month )
     ## DATA PREPARATION
     Precip=iris.load_cube(f, 'brightness_temperature')
     # set values to NaN
@@ -99,23 +99,19 @@ for f in file_list[99::]:
         part[part < 0] = np.nan
         Precip.data[i] = part 
 
-    #data = Precip.data
-    #data = da.where(data < 0, data, np.nan)
-    #Precip = Precip.copy(data=data)
-
     # FEATURE DETECTION
     print('starting feature detection based on multiple thresholds')
     Features=tobac.feature_detection_multithreshold(Precip,dxy,**parameters_features)
     print('feature detection done')
-    Features.to_hdf(os.path.join(savedir,'tbbtracking_revised/Features_' + str(i) + '.h5'),'table')
+    Features.to_hdf(os.path.join(savedir,'tbbtracking_revised/Features_' + str(year) +str(month) + '.h5'),'table')
     print('features saved', Features.shape)
     
     # SEGMENTATION 
     print('Starting segmentation based on surface precipitation')
     Mask,Features_Precip=tobac.segmentation_2D(Features,Precip,dxy,**parameters_segmentation)
     print('segmentation based on surface precipitation performed, start saving results to fs')
-    iris.save([Mask],os.path.join(savedir,'tbbtracking_revised/Mask_Segmentation_' + str(i) + '.nc'),zlib=True,complevel=4)                
-    Features_Precip.to_hdf(os.path.join(savedir,'tbbtracking_revised/Features_cells_' + str(i) + '.h5'),'table')
+    iris.save([Mask],os.path.join(savedir,'tbbtracking_revised/Mask_Segmentation_' + str(year) + str(month) + '.nc'),zlib=True,complevel=4)                
+    Features_Precip.to_hdf(os.path.join(savedir,'tbbtracking_revised/Features_cells_' + str(year) +  str(month) + '.h5'),'table')
     print('segmentation surface precipitation performed and saved')
 
     del Precip

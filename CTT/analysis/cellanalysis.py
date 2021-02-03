@@ -49,6 +49,26 @@ def get_lifetime(tracks):
     print('lifetime histo calculated.')
     return lt
 
+
+
+def get_init(tracks):
+    init_lats= []
+    init_lons= []
+    diss_lats= []
+    diss_lons= []
+    for y in np.arange(2000,2020):
+        ytracks = tracks[tracks.timestr.dt.year== y]
+        for cell in np.unique(ytracks.cell.values):
+            subset= tracks[tracks.cell == cell]
+            init_lats.append(subset.latitude.values[0])
+            init_lons.append(subset.longitude.values[0])
+            diss_lats.append(subset.latitude.values[-1])
+            diss_lons.append(subset.longitude.values[-1])
+
+    return np.array(init_lats), np.array(init_lons), np.array(diss_lats), np.array(diss_lons)
+
+
+
 def get_area(tracks):
     a= []
     for y in np.arange(2000,2020):
@@ -116,3 +136,4 @@ def get_max_values(tracks):
         rain_peak.append(hour)
     rain_histo = np.histogram(rain_peak, bins = np.arange(0,24))
     return rain_histo[0]
+

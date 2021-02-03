@@ -24,7 +24,7 @@ dem = '/media/juli/Data/projects/data/elevation/elevation_600x350.nc'
 elevations = xr.open_dataarray(dem)
 
 # mask as coordinates 
-dem_mask = elevations.where(elevations >= 3000)
+dem_mask = elevations.where((elevations >= 3000) & (elevations.lat> 27) & (elevations.lat< 40) &(elevations.lon> 70)& (elevations.lon< 105))
 dem_mask.coords['mask'] = (('lon', 'lat'), dem_mask)
 
 
@@ -53,8 +53,7 @@ parameters_linking['v_max']= 100
 #parameters_linking['d_min']=4*dxy # four times the grid spacing ?                                       
             
 ## Recombination of feature dataframes (update framenumbers)
-savedir= '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tcs'
-
+savedir= '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tbbtracking_revised'
 
 
 # get brightness temp file 
@@ -63,7 +62,7 @@ f = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/2001/merg_200106.nc4
 ds= Dataset(f)
 tbb = np.array(ds['Tb']) 
 
-years = np.arange(2000,2020)
+years = np.arange(2001,2020)
 years = years.astype(str)
 
 # perform trajectory linking per year
@@ -81,13 +80,13 @@ for year in years:
         if i == 0:
             Features = pd.read_hdf(file, 'table')
             # read in data mask with segments for tracked cells 
-            date= file[len(file)-9: len(file)-3]
-            ds = Dataset(savedir+ '/Mask_Segmentation_'+date+'.nc')
+            mon= file[len(file)-5: len(file)-3]
+            ds = Dataset(savedir+ '/Mask_Segmentation_'+year +mon +mon +'.nc')
             mask = np.array(ds['segmentation_mask'])  
             # update total nr of frames 
             frames += np.shape(mask)[0] -1
             i = 1 
-            print('file for: ',date, 'rows: ',Features.shape[0], 'frames: ', frames)
+            print('file for: ',year , mon, 'rows: ',Features.shape[0], 'frames: ', frames)
 
         features = pd.read_hdf(file, 'table')
         # update frame number and make sure they are sequential
@@ -97,12 +96,12 @@ for year in years:
         # append dataframes 
         Features = Features.append(features, ignore_index=True)      
         # read in data mask with segments for tracked cells 
-        date= file[len(file)-9: len(file)-3]
-        ds = Dataset(savedir+ '/Mask_Segmentation_'+date+'.nc')
+        mon= file[len(file)-5: len(file)-3]
+        ds = Dataset(savedir+ '/Mask_Segmentation_'+year+mon+mon+'.nc')
         mask = np.array(ds['segmentation_mask'])  
         #update total nr of frames
         frames += np.shape(mask)[0]
-        print('file for: ',date, 'rows: ',features.shape[0], 'frames: ', frames)
+        print('file for: ',year,mon, 'rows: ',features.shape[0], 'frames: ', frames)
 
 
     ## Perform trajectory linking with trackpy 
@@ -123,7 +122,7 @@ for year in years:
         subset = tracks[tracks.cell == i]
         if subset[subset.threshold_value <= 200].shape[0] == 0 :
             tracks.drop(tracks.loc[tracks['cell']== i].index, inplace=True)
-
+x
     tracks.to_hdf(os.path.join(savedir,'Tracks_'+year+'_cold_core.h5'),'table')  
     print('cold core filtered.', tracks.shape)
 
@@ -154,11 +153,10 @@ for year in years:
                 month= '0' + str(month)
 
             # check whether precip is in area of segmentation mask, where segmentation mask == feature number 
-            maskfile = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tcs/Mask_Segmentation_'+str(year) + str(month) + '.nc'
+            maskfile = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tbbtracking_revised/Mask_Segmentation_'+str(year) + str(month)+str(month) + '.nc'
             precipfile = '/media/juli/Elements/gpm_v06/'+str(year)+'/gpm_imerg_'+ str(year)+str(month)+'_monthly.nc4'
-
             mask = xr.open_dataarray(maskfile)
-            mask= mask[:,:,:].T        
+            mask= mask[:,1:,1:].T        
             precip = xr.open_dataarray(precipfile)
             precip = precip[:,1:,1:].T
 
@@ -187,26 +185,26 @@ for year in years:
                     # create mask as coordinates 
                     seg_mask.coords['mask'] = (('lon', 'lat'), seg_mask)
                     # apply mask on precip data to extract precip values for feature in cell 
-                    precip_values = prec.T.where(seg_mask.coords['mask'].values > 1)
+                    precip_values = prec.T.where(seg_mask.coords['mask'].values > 0)
                     arr= precip_values.values.flatten()
                     values = arr[~np.isnan(arr)] # values contains the amount of grid cells with precip
                     total_precip = np.nansum(values[values > 0]) * 0.5
 
-                    tracks['total_precip'][tracks.feature == featureid] = total_precip 
+                    subset['total_precip'][subset.feature == featureid] = total_precip 
 
                     rain_features = values[values >= 3].shape[0]
-                    tracks['convective_precip'][tracks.feature == featureid] = np.nansum(values[values >= 5])*0.5
-                    tracks['rain_flag'][tracks.feature == featureid]  = rain_features
+                    subset['convective_precip'][subset.feature == featureid] = np.nansum(values[values >= 5])*0.5
+                    subset['rain_flag'][subset.feature == featureid]  = rain_features
 
                     # Elevation mask  
-                    elevation_values = dem_mask.where(seg_mask.coords['mask'].values > 1)
+                    elevation_values = dem_mask.where(seg_mask.coords['mask'].values > 0)
                     arr= elevation_values.values.flatten()
                     values = arr[~np.isnan(arr)]
 
                     mountain_features = values[values >=3000].shape[0]
-                    tracks['tp_flag'][tracks.feature == featureid] =  mountain_features
+                    subset['tp_flag'][subset.feature == featureid] =  mountain_features
 
-                    if rain_features >= 1: 
+                    if rain_features >= 5: 
                         precipitation_flag += rain_features
             else:
                 np.savetxt(savedir+ 'shape_'+ str(year) +str(month)+'txt', [precip.shape, mask.shape])
@@ -221,7 +219,7 @@ for year in years:
             #print('heavy rain core present in:  ', cell, rain_features)
 
     #print(removed, ' cells removed in total.')
-    tracks.to_hdf(os.path.join(savedir,'Tracks_'+ str(year) +'_heavyraincore3mmocc.h5'),'table' ) 
+    tracks.to_hdf(os.path.join(savedir,'Tracks_'+ str(year) +'_heavyraincore3mm.h5'),'table' ) 
 
     print('trajectory linking for year  '+ str(year) +'performed.') 
 
