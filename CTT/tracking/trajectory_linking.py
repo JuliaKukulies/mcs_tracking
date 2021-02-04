@@ -122,9 +122,9 @@ for year in years:
         subset = tracks[tracks.cell == i]
         if subset[subset.threshold_value <= 200].shape[0] == 0 :
             tracks.drop(tracks.loc[tracks['cell']== i].index, inplace=True)
-x
+
     tracks.to_hdf(os.path.join(savedir,'Tracks_'+year+'_cold_core.h5'),'table')  
-    print('cold core filtered.', tracks.shape)
+    #print('cold core filtered.', tracks.shape)
 
     ########################################## Heavy rain core#######################################
     removed = 0
@@ -190,11 +190,10 @@ x
                     values = arr[~np.isnan(arr)] # values contains the amount of grid cells with precip
                     total_precip = np.nansum(values[values > 0]) * 0.5
 
-                    subset['total_precip'][subset.feature == featureid] = total_precip 
-
+                    tracks['total_precip'][(tracks.feature == featureid) & (tracks.idx == idx)] = total_precip 
                     rain_features = values[values >= 3].shape[0]
-                    subset['convective_precip'][subset.feature == featureid] = np.nansum(values[values >= 5])*0.5
-                    subset['rain_flag'][subset.feature == featureid]  = rain_features
+                    tracks['convective_precip'][(tracks.feature == featureid) & (tracks.idx == idx)] = np.nansum(values[values >= 5])*0.5
+                    tracks['rain_flag'][(tracks.feature == featureid) & (tracks.idx == idx)]  = rain_features
 
                     # Elevation mask  
                     elevation_values = dem_mask.where(seg_mask.coords['mask'].values > 0)
@@ -202,7 +201,7 @@ x
                     values = arr[~np.isnan(arr)]
 
                     mountain_features = values[values >=3000].shape[0]
-                    subset['tp_flag'][subset.feature == featureid] =  mountain_features
+                    tracks['tp_flag'][(tracks.feature == featureid) & (tracks.idx == idx)] =  mountain_features
 
                     if rain_features >= 5: 
                         precipitation_flag += rain_features
@@ -212,7 +211,7 @@ x
         if precipitation_flag  ==  0:
             # remove corresponding cell from track dataframe 
             tracks = tracks.drop(tracks[tracks.cell == cell].index)
-            print(cell, ' removed.')
+            #print(cell, ' removed.')
             removed += 1 
 
         #else:
