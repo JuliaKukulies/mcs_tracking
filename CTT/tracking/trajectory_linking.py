@@ -62,7 +62,7 @@ f = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/2001/merg_200106.nc4
 ds= Dataset(f)
 tbb = np.array(ds['Tb']) 
 
-years = np.arange(2001,2020)
+years = np.arange(2009,2020)
 years = years.astype(str)
 
 # perform trajectory linking per year
@@ -190,10 +190,10 @@ for year in years:
                     values = arr[~np.isnan(arr)] # values contains the amount of grid cells with precip
                     total_precip = np.nansum(values[values > 0]) * 0.5
 
-                    tracks['total_precip'][(tracks.feature == featureid) & (tracks.idx == idx)] = total_precip 
+                    tracks['total_precip'][(tracks.feature == featureid) & (tracks.idx == idx) & (tracks.cell== cell)] = total_precip 
                     rain_features = values[values >= 3].shape[0]
-                    tracks['convective_precip'][(tracks.feature == featureid) & (tracks.idx == idx)] = np.nansum(values[values >= 5])*0.5
-                    tracks['rain_flag'][(tracks.feature == featureid) & (tracks.idx == idx)]  = rain_features
+                    tracks['convective_precip'][(tracks.feature == featureid) & (tracks.idx == idx)& (tracks.cell== cell)] = np.nansum(values[values >= 5])*0.5
+                    tracks['rain_flag'][(tracks.feature == featureid) & (tracks.idx == idx)& (tracks.cell== cell)]  = rain_features
 
                     # Elevation mask  
                     elevation_values = dem_mask.where(seg_mask.coords['mask'].values > 0)
@@ -201,7 +201,7 @@ for year in years:
                     values = arr[~np.isnan(arr)]
 
                     mountain_features = values[values >=3000].shape[0]
-                    tracks['tp_flag'][(tracks.feature == featureid) & (tracks.idx == idx)] =  mountain_features
+                    tracks['tp_flag'][(tracks.feature == featureid) & (tracks.idx == idx)& (tracks.cell== cell)] =  mountain_features
 
                     if rain_features >= 5: 
                         precipitation_flag += rain_features

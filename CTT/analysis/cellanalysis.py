@@ -77,9 +77,39 @@ def get_area(tracks):
             area= np.nanmean(ytracks[ytracks.cell== cell].ncells.values)
             a.append(area)
     a = np.array(a)
-    a = np.histogram(a, bins=np.arange(100,4000,100))
+    a = np.histogram(a, bins=np.arange(0,4050,50))
     print('area histo calculated.')
     return a
+
+
+# divide into north-moving, east-moving and other 
+
+def propagation_dir(tracks):
+    pd.options.mode.chained_assignment = None 
+    
+    tracks['dir'] = 0 
+    for c in np.unique(tracks.cell.values):
+        cell= tracks[tracks.cell == c]
+
+        west_east= cell.longitude.values[-1] - cell.longitude.values[0]
+        north_south = cell.latitude.values[-1] - cell.latitude.values[0]
+
+        if north_south > west_east:
+            if np.nanmean(cell.latitude.values[0:2]) < np.nanmean(cell.latitude.values[-3:-1]):
+                tracks['dir'][tracks.cell == c] =  'N'
+            elif np.nanmean(cell.latitude.values[0:2]) > np.nanmean(cell.latitude.values[-3:-1]):
+                tracks['dir'][tracks.cell == c] =  'S'
+                
+        elif north_south < west_east:
+            if np.nanmean(cell.longitude.values[0:2]) < np.nanmean(cell.longitude.values[-3:-1]):
+                tracks['dir'][tracks.cell == c] =  'E'
+            elif np.nanmean(cell.longitude.values[0:2]) > np.nanmean(cell.longitude.values[-3:-1]):
+                tracks['dir'][tracks.cell == c] =  'W'
+    return tracks 
+
+
+
+
 
 def get_v(tracks):
     v= []
@@ -136,4 +166,21 @@ def get_max_values(tracks):
         rain_peak.append(hour)
     rain_histo = np.histogram(rain_peak, bins = np.arange(0,24))
     return rain_histo[0]
+
+
+
+def divide_data(tracks):
+    tp_tracks= pd.DataFrame(columns = tracks.columns)
+    surrounding_tracks= pd.DataFrame(columns = tracks.columns)
+    for y in np.unique(tracks.timestr.dt.year):
+        print(y)
+        subset = tracks[tracks.timestr.dt.year == y]
+        for i in np.unique(subset.cell.values):
+            cell = subset[subset.cell == i]
+            if np.sum(cell.tp_flag.values) == 0:
+                surrounding_tracks= surrounding_tracks.append(cell)
+            else:
+                tp_tracks= tp_tracks.append(cell)
+                
+    return tp_tracks, surrounding_tracks
 
