@@ -1,4 +1,4 @@
-## This python scripts collects functions for the analysis of tracked MCS
+\1;2802;0c## This python scripts collects functions for the analysis of tracked MCS
 
 import numpy as np
 import pandas as pd
@@ -74,7 +74,7 @@ def get_area(tracks):
     for y in np.arange(2000,2020):
         ytracks = tracks[tracks.timestr.dt.year== y]
         for cell in np.unique(ytracks.cell.values):
-            area= np.nanmean(ytracks[ytracks.cell== cell].ncells.values)
+            area= np.nanmean(np.array(ytracks[ytracks.cell== cell].ncells.values))
             a.append(area)
     a = np.array(a)
     a = np.histogram(a, bins=np.arange(0,4050,50))
