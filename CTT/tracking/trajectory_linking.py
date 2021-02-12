@@ -62,7 +62,7 @@ f = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/2001/merg_200106.nc4
 ds= Dataset(f)
 tbb = np.array(ds['Tb']) 
 
-years = np.arange(2009,2020)
+years = np.arange(2012,2015)
 years = years.astype(str)
 
 # perform trajectory linking per year

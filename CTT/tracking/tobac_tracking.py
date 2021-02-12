@@ -78,7 +78,7 @@ print('files in dataset:  ', len(file_list))
 file_list.sort()
 
 
-for f in file_list[145::]:
+for f in file_list[175::]:
     year = f[len(data_dir)+10:-4]
     month = f[len(data_dir)+14:-4]
     

@@ -24,7 +24,7 @@ precip_files.sort()
 
 
 ## loop through monthly precip files
-for f in precip_files[0::]:
+for f in precip_files[90::]:
     congrid = np.zeros((600,350))
     year = int(f[44:48])
     month = int(f[48:50])
@@ -55,7 +55,7 @@ for f in precip_files[0::]:
                 p = prec[:,:-1,:-1]
                 pr = np.array(p.data)
                 # extreme precip
-                pr[pr< 2.16] = np.nan
+                pr[pr < 2.16] = 0
 
                 # feature mask to get the fields from tracked MCS 
 
@@ -66,7 +66,7 @@ for f in precip_files[0::]:
                     # get precip and mask for specific timestep 
                     prect= p[t,:,:]
                     # remove very low values  
-                    prect.data[prect.data < 2.16] = np.nan
+                    prect.data[prect.data < 0.1 ] = 0 
 
                     mcst = mcsdata[t, :, :].T
                     features = mcst.data
@@ -101,6 +101,8 @@ for f in precip_files[0::]:
                         for pf in feature_labels[feature_labels> 0]:
                             prect.data[prcplabels != pf] = 0
 
+
+                        prect.data[prect.data< 2.16] = 0 
                         # add all contiguous precip features until 0.1 mm/hr 
                         stacked = np.dstack((congrid, prect.data))
                         congrid= np.nansum(stacked, axis = 2 )
@@ -111,7 +113,7 @@ for f in precip_files[0::]:
             #################### write and save netcdf file##########################################
 
             # Creating dimensions
-            data = Dataset('/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tcs/mcs_contr_precip'+str(year)+ str(month) + '_extreme.nc4','w', format = 'NETCDF4_CLASSIC')
+            data = Dataset('/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tcs/mcs_contr_precip'+str(year)+ str(month) + '_test.nc4','w', format = 'NETCDF4_CLASSIC')
 
             lat =data.createDimension('lat',np.shape(p)[2])
             lon =data.createDimension('lon',np.shape(p)[1])    

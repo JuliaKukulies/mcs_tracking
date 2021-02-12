@@ -10,7 +10,8 @@ import numpy as np
 import pandas as pd
 
 
-def get_tracks(filename):
+
+def get_tracks(filename, year):
     """
     Read in text files with TPV tracks and create an organized pandas dataframe from it.
 
@@ -30,14 +31,14 @@ def get_tracks(filename):
         for line in td:
             if 'TRACK_ID' in line:
                 for i in line.split():
-                    if len(i) == 4:
+                    if len(i) <= 4:
                         trackid= int(i) 
 
             if len(line) > 50:
                 columns = []
                 for i in line.split():
                     if i != '&':
-                        if '2008' in i:
+                        if str(year) in i:
                             columns.append(i)
                         else:
                             columns.append(float(i))
@@ -75,7 +76,7 @@ def check_overlap(tpv,mcs):
         tpv_case= tpv[tpv.id == tpv_id]
         start = tpv_case.time.values[0]
         end = tpv_case.time.values[-1]
-        # loop through mcs dates 
+        # loop through mcs dates
 
         for cell in np.unique(mcs.cell.values):
             # do the whole thing per year to really get individual cell IDs
