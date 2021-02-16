@@ -1,4 +1,4 @@
-\1;2802;0c## This python scripts collects functions for the analysis of tracked MCS
+## This python scripts collects functions for the analysis of tracked MCS
 
 import numpy as np
 import pandas as pd
@@ -91,9 +91,9 @@ def propagation_dir(tracks):
     for c in np.unique(tracks.cell.values):
         cell= tracks[tracks.cell == c]
 
-        west_east= cell.longitude.values[-1] - cell.longitude.values[0]
-        north_south = cell.latitude.values[-1] - cell.latitude.values[0]
-
+        west_east= np.nanmean(cell.longitude.values[-3:-1])  - np.nanmean(cell.longitude.values[-0:2])
+        north_south= np.nanmean(cell.latitude.values[-3:-1])  - np.nanmean(cell.latitude.values[-0:2])
+                                                                         
         if north_south > west_east:
             if np.nanmean(cell.latitude.values[0:2]) < np.nanmean(cell.latitude.values[-3:-1]):
                 tracks['dir'][tracks.cell == c] =  'N'
@@ -168,7 +168,6 @@ def get_max_values(tracks):
     return rain_histo[0]
 
 
-
 def divide_data(tracks):
     tp_tracks= pd.DataFrame(columns = tracks.columns)
     surrounding_tracks= pd.DataFrame(columns = tracks.columns)
@@ -177,7 +176,7 @@ def divide_data(tracks):
         subset = tracks[tracks.timestr.dt.year == y]
         for i in np.unique(subset.cell.values):
             cell = subset[subset.cell == i]
-            if np.sum(cell.tp_flag.values) == 0:
+            if np.sum(cell.tp_flag.values) < 100:
                 surrounding_tracks= surrounding_tracks.append(cell)
             else:
                 tp_tracks= tp_tracks.append(cell)

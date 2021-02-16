@@ -53,47 +53,52 @@ def get_tracks(filename, year):
 
 
 
-
 def check_overlap(tpv,mcs):
     """
-    Check the overlap between TPV and MCS tracks. 
+    Check the overlap between TPV (before they are moving off) and MCS tracks. 
     
     Args: 
     tpv: pandas.DataFrame with TPV tracks 
     mcs: pandas.DataFrame with MCS tracks 
     
     Returns: 
-    mcs_count: number of MCS that occur when there is a TPV
-    no_mcs_count: number of TPV that occur without any MCS 
-    no_tpv_count: number of MCS that occur without any TPV 
+
+      
     """
     
-    mcs_count = np.zeros(np.unique(tpv.id.values).size)
-    no_mcs_count = 0 
-    i= 0 
-
+    tpv_overlap = np.zeros(np.unique(tpv.id.values.shape[0]))            
+    tpv_no_mcs = 0
+    i  = 0
+    unique_cells_tpv= np.array(())
+    
     for tpv_id in np.unique(tpv.id.values):
         tpv_case= tpv[tpv.id == tpv_id]
         start = tpv_case.time.values[0]
-        end = tpv_case.time.values[-1]
-        # loop through mcs dates
+        tpv_case['lon'] =pd.to_numeric(tpv_case['lon'])
+        end = tpv_case.time.values[-1] + np.timedelta64(1,'D')
 
+            
+        # loop through mcs dates
         for cell in np.unique(mcs.cell.values):
             # do the whole thing per year to really get individual cell IDs
             subset = mcs[mcs.cell == cell]
             for t in np.arange(subset.shape[0]):
                 time  = subset.timestr.values[t]
                 if (start <= time <= end) == True:
-                    mcs_count[i] += 1
+                    tpv_overlap[i] += 1
+                    unique_cells_tpv = np.append(unique_cells_tpv, cell)  
                     break
-
-        if mcs_count[i] == 0:
-            no_mcs_count += 1
-
+    
+        if tpv_overlap[i] == 0:
+            tpv_no_mcs += 1
         i += 1
 
-    no_tpv_count = np.unique(mcs.cell.values).shape[0] - mcs_count.sum()
-    return mcs_count, no_mcs_count, no_tpv_count
+    all_mcs = np.unique(mcs.cell.values).shape[0]
+    all_tpv = np.unique(tpv.id.values).shape[0] 
+    mcs_overlap= np.unique(np.array(unique_cells_tpv)).shape[0]
+    mcs_no_tpv= np.setxor1d(mcs.cell.values, unique_cells_tpv).shape[0]
+    
+    return tpv_overlap, tpv_no_mcs, mcs_no_tpv, all_mcs, all_tpv, mcs_overlap
 
 
 
@@ -106,22 +111,18 @@ def check_overlap_tcs(tpv,mcs):
     mcs: pandas.DataFrame with MCS tracks 
     
     Returns: 
-    mcs_count: number of MCS that occur when there is a TPV that does not move off 
-    mcs_count_off: number of MCS that occur when there is an off moving TPV  
-    tpv_no_mcs: number of TPV that occur without any MCS 
-    mcs_no_tpv: number of MCS that occur without any TPV
-    all_mcs: all MCS during that period 
-    all_tpv : asll TPV during that period 
+      
     """
-    
+
+        
     mcs_count = np.zeros(np.unique(tpv.id.values.shape[0]))
-    mcs_count_off = np.zeros(np.unique(tpv.id.values.shape[0]))            
-    tpv_no_mcs = 0
-    mcs_no_tpv = 0 
-    i= 0
+    mcs_count_off = np.zeros(np.unique(tpv.id.values.shape[0]))
+    tpv_no_mcs = 0 
+    i  = 0
     unique_cells_tpv = np.array(())
     unique_cells_tpv_off = np.array(())
 
+    
     for tpv_id in np.unique(tpv.id.values):
         tpv_case= tpv[tpv.id == tpv_id]
         start = tpv_case.time.values[0]
@@ -161,6 +162,6 @@ def check_overlap_tcs(tpv,mcs):
     overlap_mcs_off = np.unique(np.array(unique_cells_tpv_off)).shape[0]
     mcs_no_tpv= np.setxor1d(mcs.cell.values, np.append(unique_cells_tpv, unique_cells_tpv_off)).shape[0] 
 
-    return mcs_count, mcs_count_off, tpv_no_mcs, mcs_no_tpv, all_mcs, all_tpv
+    return mcs_count, mcs_count_off, tpv_no_mcs, mcs_no_tpv, all_mcs, all_tpv, overlap_mcs, overlap_mcs_off 
 
 
