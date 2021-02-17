@@ -62,7 +62,7 @@ f = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/2001/merg_200106.nc4
 ds= Dataset(f)
 tbb = np.array(ds['Tb']) 
 
-years = np.arange(2017,2020)
+years = np.arange(2019,2020)
 years = years.astype(str)
 
 # perform trajectory linking per year
@@ -113,25 +113,19 @@ for year in years:
     tracks= Track 
     print(np.unique(tracks.cell.values).shape[0], '  unique cloud cells. Features:', tracks.shape[0])
 
-
+    
     ########################## Filter ###################################
-    ## Cold core 
+    ## Cold core
     # once during the lifetime a cold core of <= 200 K needs to be present 
     ######
-    for i in np.unique(tracks.cell.values):
-        subset = tracks[tracks.cell == i]
-        if subset[subset.threshold_value <= 200].shape[0] == 0 :
-            tracks.drop(tracks.loc[tracks['cell']== i].index, inplace=True)
-
-    tracks.to_hdf(os.path.join(savedir,'Tracks_'+year+'_cold_core.h5'),'table')  
-    #print('cold core filtered.', tracks.shape)
-
+    
     ########################################## Heavy rain core#######################################
     removed = 0
     tracks['rain_flag'] = 0 
     tracks['tp_flag'] = 0
     tracks['total_precip']= 0
     tracks['convective_precip'] = 0
+    tracks['mean_temp'] = 0 
 
     pd.options.mode.chained_assignment = None
 
@@ -142,6 +136,7 @@ for year in years:
         subset = tracks[tracks.cell == cell]
         #print('checking heavy rain cores for cell:', cell, subset.shape)
         precipitation_flag = 0
+        tbb_flag = 0 
 
         # loop through timesteps of features for specific cell 
         for idx in subset.idx.values: 
@@ -155,6 +150,10 @@ for year in years:
             # check whether precip is in area of segmentation mask, where segmentation mask == feature number 
             maskfile = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tbbtracking_revised/Mask_Segmentation_'+str(year) + str(month)+str(month) + '.nc'
             precipfile = '/media/juli/Elements/gpm_v06/'+str(year)+'/gpm_imerg_'+ str(year)+str(month)+'_monthly.nc4'
+            tbbfile = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/'+str(year)+'/merg_' + str(year)+str(month)+ '.nc4'
+            tbbdata= xr.open_dataarray(tbbfile)
+            tbbdata = tbbdata[:,1:,1:].T
+            
             mask = xr.open_dataarray(maskfile)
             mask= mask[:,1:,1:].T        
             precip = xr.open_dataarray(precipfile)
@@ -166,6 +165,7 @@ for year in years:
                 # get right timestep frames 
                 seg= mask[:,:, idx]
                 prec = precip[:,:, idx]
+                tbb = tbbdata[:,:,idx].T
 
                 # get feature ID for frame 
                 featureid= subset.feature[subset.idx== idx].values[0]
@@ -189,12 +189,19 @@ for year in years:
                     arr= precip_values.values.flatten()
                     values = arr[~np.isnan(arr)] # values contains the amount of grid cells with precip
                     total_precip = np.nansum(values[values > 0]) * 0.5
-
                     tracks['total_precip'][(tracks.feature == featureid) & (tracks.idx == idx) & (tracks.cell== cell)] = total_precip 
                     rain_features = values[values >= 3].shape[0]
-                    tracks['convective_precip'][(tracks.feature == featureid) & (tracks.idx == idx)& (tracks.cell== cell)] = np.nansum(values[values >= 5])*0.5
+                    tracks['convective_precip'][(tracks.feature == featureid) & (tracks.idx == idx)& (tracks.cell== cell)] = np.nansum(values[values >= 5])*0.
                     tracks['rain_flag'][(tracks.feature == featureid) & (tracks.idx == idx)& (tracks.cell== cell)]  = rain_features
-
+                    
+                    # brightness temperatures cold core filter 
+                    tbb_values = tbb.T.where(seg_mask.coords['mask'].values > 0)
+                    arr= tbb_values.values.flatten()
+                    values = arr[~np.isnan(arr)] # values contains the amount of grid cells with precip
+                    tracks['mean_temp'][(tracks.feature == featureid) & (tracks.idx == idx) & (tracks.cell== cell)] = np.nanmean(values[values > 0])
+                    if values[values > 0].min() <=200:
+                        tbb_flag += 1 
+                    
                     # Elevation mask  
                     elevation_values = dem_mask.where(seg_mask.coords['mask'].values > 0)
                     arr= elevation_values.values.flatten()
@@ -203,11 +210,20 @@ for year in years:
                     mountain_features = values[values >=3000].shape[0]
                     tracks['tp_flag'][(tracks.feature == featureid) & (tracks.idx == idx)& (tracks.cell== cell)] =  mountain_features
 
-                    if rain_features >= 5: 
+                    if rain_features >= 18: 
                         precipitation_flag += rain_features
+
+                
             else:
                 np.savetxt(savedir+ 'shape_'+ str(year) +str(month)+'txt', [precip.shape, mask.shape])
 
+
+        if tbb_flag == 0:
+            tracks = tracks.drop(tracks[tracks.cell == cell].index)
+            tracks.to_hdf(os.path.join(savedir,'Tracks_'+ str(year) +'_cold_core.h5'),'table' ) 
+            
+
+                          
         if precipitation_flag  ==  0:
             # remove corresponding cell from track dataframe 
             tracks = tracks.drop(tracks[tracks.cell == cell].index)

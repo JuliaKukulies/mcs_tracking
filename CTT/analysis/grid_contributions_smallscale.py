@@ -24,7 +24,7 @@ precip_files.sort()
 
 
 ## loop through monthly precip files
-for f in precip_files[90::]:
+for f in precip_files[91::]:
     congrid = np.zeros((600,350))
     year = int(f[44:48])
     month = int(f[48:50])

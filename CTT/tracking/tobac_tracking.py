@@ -73,12 +73,12 @@ parameters_linking['d_min']=4*dxy # four times the grid spacing ?
 ############################################################## Tracking : Feature detection and Segmentation ###################################################################################################
 import glob 
 # list with all files by month
-file_list= glob.glob(data_dir + '????/merg_??????.nc4')  
+file_list= glob.glob(data_dir + '2000/merg_??????.nc4')  
 print('files in dataset:  ', len(file_list))
 file_list.sort()
 
 
-for f in file_list[224::]:
+for f in file_list[4::]:
     year = f[len(data_dir)+10:-4]
     month = f[len(data_dir)+14:-4]
     

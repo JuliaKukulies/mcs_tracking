@@ -45,7 +45,7 @@ def get_lifetime(tracks):
             hours= ytracks[ytracks.cell== cell].shape[0] * 0.5
             lt.append(hours)
     lt = np.array(lt)
-    lt= np.histogram(lt, bins= np.arange(3,51)[::2]) 
+    lt= np.histogram(lt, bins= np.arange(3,36)[::2]) 
     print('lifetime histo calculated.')
     return lt
 
@@ -77,7 +77,7 @@ def get_area(tracks):
             area= np.nanmean(np.array(ytracks[ytracks.cell== cell].ncells.values))
             a.append(area)
     a = np.array(a)
-    a = np.histogram(a, bins=np.arange(0,4050,50))
+    a = np.histogram(a, bins=np.arange(250,3050,50))
     print('area histo calculated.')
     return a
 
