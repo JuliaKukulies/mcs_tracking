@@ -30,6 +30,8 @@ for f in precip_files[0::]:
     year = int(f[44:48])
     month = int(f[48:50])
 
+    cellset = {}
+
     print(year, month)
     if len(str(month)) ==1:
         month = '0'+ str(month)
@@ -43,7 +45,6 @@ for f in precip_files[0::]:
         fi = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tbbtracking_revised/Mask_Segmentation_'+str(year) + str(month) +str(month)+'.nc'
         # open file with tracks
 
-        
         trackfile = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tbbtracking_revised/Tracks_'+ str(year)+'_heavyraincore3mm.h5'
         tracks = pd.read_hdf(trackfile, 'table')
         # get for specific month 
@@ -58,11 +59,12 @@ for f in precip_files[0::]:
                 # extreme precip
                 pr[pr < 5] = 0
 
-                # feature mask to get the fields from tracked MCS 
+                # feature mask to get the fields from tracked MCS
+
 
                 # loop through timesteps
                 for t in np.arange(0,np.shape(prec)[0]):
-                    i = 0 
+                    i = 0
 
                     # get precip and mask for specific timestep 
                     prect= p[t,:,:]
@@ -81,22 +83,29 @@ for f in precip_files[0::]:
 
                     # set mask values to zero, where no feature in table, otherwise get whole segmented object for feature 
                     trackfeatures = subtracks[subtracks.idx == t].feature.values
+                    cells = subtracks[subtracks.idx == t].cell.values
+                   
                     # loop through unique mask cloud objects
                     for l in np.unique(mcslabels[mcslabels > 0]):
+                        
                         # get features in mask 
                         tbbfeatures = np.unique(features[mcslabels == l])
+                        cellid=  subtracks[subtracks.feature == tbbfeatures[0]].cell.values[0]
+                        # mark only features from new cells, for mcs counting 
+                        if cellid in cellset:
+                            features[mcslabels == l] = 0 
+                        
                         # compare features in mask to tracked features and change l area to zero if feature is not tracked 
                         if any(x in tbbfeatures for x in trackfeatures) == False:
                             mcslabels[mcslabels == l] = 0
-
 
                     if np.shape(mcslabels[mcslabels>0])[0] > 0:
                         # create MCS mask 
                         mcsmask = mcst.where(mcslabels > 0)
                         mcsmask.coords['mcsmask'] = (('lon', 'lat'), mcsmask)
-                        mcs_amount = mcsmask
-                        mcs_amount[mcs_mask >0] == 1
-
+                        
+                        density[features > 0 ] += 1
+                                           
                         ## add mcs-associated precip of month to empty grid
                         feature_labels = prcplabels[mcslabels > 0 ]
                         #feature_labels  = np.unique(prcp_features.where(mcsmask.coords['mcsmask'].values > 0 ).values
@@ -104,18 +113,14 @@ for f in precip_files[0::]:
                         for pf in feature_labels[feature_labels> 0]:
                             prect.data[prcplabels != pf] = 0
 
-
                         prect.data[prect.data< 5] = 0 
                         # add all contiguous precip features until 0.1 mm/hr 
                         stacked = np.dstack((congrid, prect.data))
                         congrid= np.nansum(stacked, axis = 2 )
 
-                        # add track number
-                        stack= np.dstack((density, mcs_amount))
-                        density = np.nansum(stack, axis = 2 )
-
                 # calculate total sum of extreme precip in month (along time axis)
                 extreme_precip = np.nansum(pr, axis = 0 )
+                cellset.update(cells)
 
             #################### write and save netcdf file##########################################
 
