@@ -183,3 +183,24 @@ def divide_data(tracks):
                 
     return tp_tracks, surrounding_tracks
 
+
+
+def track_density(tracks, elevations):
+    # empty mask for TP region 
+    track_count = np.zeros((600,350))
+    for idx in np.arange(tracks.shape[0]):
+        # get coords 
+        lat = tracks.latitude.values[idx]
+        lon = tracks.longitude.values[idx]
+        # get closest coordinate 
+        lo = find_nearest(elevations.lon.values, lon)
+        la = find_nearest(elevations.lat.values, lat)
+        # get corresponding indices 
+        x = np.where(elevations.lon == lo)[0]
+        y = np.where(elevations.lat == la)[0]
+        # count at coordinate location 
+        track_count[x,y] += 1
+    return track_count
+
+
+
