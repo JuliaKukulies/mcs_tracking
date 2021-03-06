@@ -28,6 +28,7 @@ precip_files.sort()
 ## loop through monthly precip files
 for f in precip_files[0::]:
     congrid = np.zeros((600,350))
+    excongrid = np.zeros((600,350))
     density = np.zeros((600,350))
     year = int(f[44:48])
     month = int(f[48:50])
@@ -43,10 +44,10 @@ for f in precip_files[0::]:
         prec = xr.open_dataarray(f)
         
         # open corresponding mask file
-        fi = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tcs/Mask_Segmentation_'+str(year) + str(month) +'.nc'
+        fi = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tbbtracking_revised/Mask_Segmentation_'+str(year) + str(month) +str(month)+'.nc'
         # open file with tracks
 
-        trackfile = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tcs/Tracks_'+ str(year)+'_heavyraincore3mm.h5'
+        trackfile = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tbbtracking_revised/Tracks_'+ str(year)+'_heavyraincore3mm.h5'
         tracks = pd.read_hdf(trackfile, 'table')
         # get for specific month 
         subtracks = tracks[tracks.time.dt.month == int(month)]
@@ -67,16 +68,14 @@ for f in precip_files[0::]:
                     # remove very low values  
                     prect.data[prect.data < 0.1 ] = 0 
 
-                    mcst = mcsdata[t, :, :].T
+                    mcst = mcsdata[t, 1:, 1:].T
                     features = mcst.data
                     # get new labels so that connected features have only one ID 
                     mcslabels, nr = ndimage.label(features, structure = s)
 
                     # get labels for connected precipitation features as well
                     prcplabels, nr = ndimage.label(prect.data, structure = s)
-                    prcp_features = prect.copy()
-                    prcp_features.data = prcplabels
-
+                   
                     # set mask values to zero, where no feature in table, otherwise get whole segmented object for feature 
                     trackfeatures = subtracks[subtracks.idx == t].feature.values
                     cells = subtracks[subtracks.idx == t].cell.values
@@ -92,7 +91,9 @@ for f in precip_files[0::]:
                             mcslabels[mcslabels == l] = 0
                             features[mcslabels == l] = 0
                         else:
+                            # get feature ID 
                             feat = np.intersect1d(tbbfeatures, trackfeatures)[0]
+                            # get cell ID 
                             cellid=  subtracks[(subtracks.feature == feat) & (subtracks.idx == t)].cell.values[0]
                             # mark only features from new cells, for mcs counting 
                             if cellid in cellset or cellid in cellset_oldmonth:
@@ -100,22 +101,30 @@ for f in precip_files[0::]:
 
                     cellset.update(cells)
                                 
-                            
+                    ## check whether MCS is present in timestep         
                     if np.shape(mcslabels[mcslabels>0])[0] > 0:
-                        # create MCS mask 
+                        # create MCS mask
                         mcsmask = mcst.where(mcslabels > 0)
                         mcsmask.coords['mcsmask'] = (('lon', 'lat'), mcsmask)
                         
                         density[features > 0 ] += 1
-                                           
-                        ## add mcs-associated precip of month to empty grid
-                        feature_labels = prcplabels[mcslabels > 0 ]
-                        #feature_labels  = np.unique(prcp_features.where(mcsmask.coords['mcsmask'].values > 0 ).values
-                        prect.data[feature_labels == 0] = 0
+
+                        for pf in np.unique(prcplabels):
+                            overlap = np.nansum(mcslabels[prcplabels == pf])
+                            if overlap  == 0:
+                                prcplabels[prcplabels == pf] = 0
+                        else:
+                            print('overlapping precip and MCS features')
+
+                        prect.data[prcplabels == 0 ] = 0 
                          
                         # add all contiguous precip features until 0.1 mm/hr 
                         stacked = np.dstack((congrid, prect.data))
                         congrid= np.nansum(stacked, axis = 2 )
+                        # add up mcs precipitation > 5 mm 
+                        prect.data[prect.data < 5] = 0 
+                        exstacked = np.dstack((excongrid, prect.data))
+                        excongrid= np.nansum(exstacked, axis = 2 )
 
                 # calculate total sum of extreme precip in month (along time axis)
                 total_precip = np.nansum(pr, axis = 0 )
@@ -125,7 +134,7 @@ for f in precip_files[0::]:
             #################### write and save netcdf file##########################################
 
             # Creating dimensions
-            data = Dataset('/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tcs/mcs_contr_precip'+str(year)+ str(month) + '.nc4','w', format = 'NETCDF4_CLASSIC')
+            data = Dataset('/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tbbtracking_revised/mcs_contribution_precip'+str(year)+ str(month) + '.nc4','w', format = 'NETCDF4_CLASSIC')
 
             lat =data.createDimension('lat',np.shape(p)[2])
             lon =data.createDimension('lon',np.shape(p)[1])    
@@ -136,6 +145,7 @@ for f in precip_files[0::]:
             precip = data.createVariable('precip',np.float64, ('lon','lat'))
             extreme_precip = data.createVariable('extreme_precip',np.float64, ('lon','lat'))
             mcs = data.createVariable('mcs',np.float64, ('lon','lat'))
+            extreme_mcs = data.createVariable('extreme_mcs',np.float64, ('lon','lat'))
             tracks = data.createVariable('track_number',np.float64, ('lon','lat'))
             
             # Creating attributes
@@ -150,6 +160,7 @@ for f in precip_files[0::]:
             mcs[:]= congrid
             precip[:] = total_precip
             extreme_precip[:] = extreme_prcp
+            extreme_mcs[:] = excongrid 
             tracks[:] = density
             lats[:]=latitude
             lons[:]=longitude
