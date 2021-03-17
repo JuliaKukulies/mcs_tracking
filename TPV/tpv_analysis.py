@@ -8,6 +8,25 @@ Created by Julia Kukulies,Feb 2021.
 import re 
 import numpy as np
 import pandas as pd
+from datetime import datetime
+import xarray 
+
+
+def get_composites(times):
+    '''
+    Get a list of datetime.datetime objects from array with numpy.datetime times   
+    '''
+    composites = []
+    for t in times:
+        t= datetime.utcfromtimestamp(t.astype(int) * 1e-9)
+        year = t.year
+        month = t.month
+        day = t.day
+        hour = t.hour
+        dt= datetime(year,month,day,hour) 
+        composites.append(dt)
+    return composites 
+
 
 
 
@@ -165,3 +184,63 @@ def check_overlap_tcs(tpv,mcs):
     return mcs_count, mcs_count_off, tpv_no_mcs, mcs_no_tpv, all_mcs, all_tpv, overlap_mcs, overlap_mcs_off 
 
 
+def zero_padding(time):
+    if time >= 10:
+        time = str(time)
+    else:
+        time = '0' + str(time)
+    return time
+
+
+
+
+def fixed_location(time,loclon,loclat, path = None):
+    '''
+    Create netcdf files with fixed locations given a weather systems
+    center location and time. These netcdf files can then be used for composite analysis.
+    
+    Args:
+    time(datetime.datetime): timepoint for which the composite should be created
+    loclon(float): longitude value of center location 
+    loclat(float): latitude value sof center location 
+    path(str): path where to store the created file 
+
+    '''
+    # get string corresponding to datetime value 
+    month = zero_padding(time.month)
+    day = zero_padding(time.day)
+    hour = zero_padding(time.hour)
+
+    #################### get corresponding files ########################################## 
+    # GPM (at 1 degree)
+    gpm_file= '/media/juli/Elements/gpm_v06/'+ str(time.year)+'/gpm_imerg_' +str(time.year) + month+'_monthly.nc4'
+    precip = xr.open_dataset(gpm_file)
+
+
+    # Tb (at 4 km)
+    datestr= str(time.year) + month+ day+hour
+    ncep_file= '/media/juli/Data/projects/data/satellite_data/ncep/ctt/merg_'+ datestr +'_4km-pixel.nc4'
+    tb = xr.open_dataset(ncep_file)
+
+    
+    ################## Extract region given TPV center location and timestep ###############
+    rad = 5
+    # get closest timesteps
+    timestep1 = precip.sel(time = cftime.DatetimeNoLeap(time.year, time.month, time.day, time.hour), method ='nearest')
+    timestep2 = precip.sel(time = cftime.DatetimeNoLeap(time.year, time.month, time.day, time.hour,30), method ='nearest')
+    # average over timesteps in same hour 
+    timestep_mean = (timestep1 + timestep2) / 2
+    # select fixed location with 3 deg radius
+    prec_fixed = timestep.precipitationCal.isel(lat = (precip.lat <= loclat+ rad) & (precip.lat >=loclat- rad), lon = (precip.lon <= loclon+ rad) & (precip.lon >=loclon- 3))
+
+
+    tb_fixed = tb.Tb.isel(lat = (tb.lat <= loclat+ rad) & (tb.lat >=loclat- rad), lon = (tb.lon <= loclon+ rad) & (tb.lon >=loclon- rad) ) 
+    # average over timesteps in same hour 
+    tb_fixed = tb_fixed.mean(dim = 'time')
+
+    # save as netcdf
+    if path is None:
+        path = ''
+    tb_fixed.to_netcdf(path + datestr + '_tb.nc4')
+    prec_fixed.to_netcdf(path + datestr + '_precip.nc4')
+    

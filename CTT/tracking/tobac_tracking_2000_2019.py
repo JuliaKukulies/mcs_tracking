@@ -117,15 +117,16 @@ def main(y):
         Precip=iris.load_cube(f, 'precipitationCal')
         Precip = Precip[:,1:,1:]
         #Precip.data[Precip.data > 300] = np.nan
-        Precip.data[Precip.data< 0] = np.nan
+        Precip.data[Precip.data < 0] = np.nan
+        Precip.data[:, elevations < 3000] = np.nan
 
         Features=tobac.feature_detection_multithreshold(Precip,dxy,**parameters_features)
         print('feature detection done')
         Features.to_hdf(os.path.join(savedir,'Features_' + str(i) + '.h5'),'table')
 
         Mask,Features_Precip=tobac.segmentation_2D(Features,Precip,dxy,**parameters_segmentation)
-        iris.save([Mask],os.path.join(savedir,'Mask_Segmentation_' + str(i) + '.nc'),zlib=True,complevel=4)
-        Features_Precip.to_hdf(os.path.join(savedir,'Features_cells_' + str(i) + '.h5'),'table')
+        iris.save([Mask],os.path.join(savedir,'Mask_Segmentation_' + str(i) + '_tp.nc'),zlib=True,complevel=4)
+        Features_Precip.to_hdf(os.path.join(savedir,'Features_cells_' + str(i) + '_tp.h5'),'table')
         print('segmentation surface precipitation performed and saved')
 
 

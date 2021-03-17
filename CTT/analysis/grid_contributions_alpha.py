@@ -39,14 +39,11 @@ for f in precip_files[0::]:
         month = '0'+ str(month)
 
     if int(month) in np.arange(13):
-    
         # open precip file
         prec = xr.open_dataarray(f)
-        
         # open corresponding mask file
-        fi = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tbbtracking_revised/Mask_Segmentation_'+str(year) + str(month) +str(month)+'.nc'
+        fi = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tbbtracking_revised/Mask_Segmentation_'+str(year) + str(month) +str(month) + '.nc'
         # open file with tracks
-
         trackfile = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tbbtracking_revised/Tracks_'+ str(year)+'_heavyraincore3mm.h5'
         tracks = pd.read_hdf(trackfile, 'table')
         # get for specific month 
@@ -65,8 +62,8 @@ for f in precip_files[0::]:
 
                     # get precip and mask for specific timestep 
                     prect= p[t,:,:]
-                    # remove very low values  
-                    prect.data[prect.data < 0.1 ] = 0 
+                    # set segmentation threshold for precipitation feature that is attributed 
+                    prect.data[prect.data < 1.0 ] = 0 
 
                     mcst = mcsdata[t, 1:, 1:].T
                     features = mcst.data
@@ -113,8 +110,6 @@ for f in precip_files[0::]:
                             overlap = np.nansum(mcslabels[prcplabels == pf])
                             if overlap  == 0:
                                 prcplabels[prcplabels == pf] = 0
-                        else:
-                            print('overlapping precip and MCS features')
 
                         prect.data[prcplabels == 0 ] = 0 
                          
@@ -122,19 +117,19 @@ for f in precip_files[0::]:
                         stacked = np.dstack((congrid, prect.data))
                         congrid= np.nansum(stacked, axis = 2 )
                         # add up mcs precipitation > 5 mm 
-                        prect.data[prect.data < 5] = 0 
+                        prect.data[prect.data < 2.16] = 0 
                         exstacked = np.dstack((excongrid, prect.data))
                         excongrid= np.nansum(exstacked, axis = 2 )
 
                 # calculate total sum of extreme precip in month (along time axis)
                 total_precip = np.nansum(pr, axis = 0 )
-                pr[pr < 5 ] = 0 
+                pr[pr < 2.16 ] = 0 
                 extreme_prcp = np.nansum(pr, axis = 0 )
 
             #################### write and save netcdf file##########################################
 
             # Creating dimensions
-            data = Dataset('/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tbbtracking_revised/mcs_contribution_precip'+str(year)+ str(month) + '.nc4','w', format = 'NETCDF4_CLASSIC')
+            data = Dataset('/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tbbtracking_revised/mcs_contribution_prcp'+str(year)+ str(month) + '.nc4','w', format = 'NETCDF4_CLASSIC')
 
             lat =data.createDimension('lat',np.shape(p)[2])
             lon =data.createDimension('lon',np.shape(p)[1])    
