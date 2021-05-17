@@ -4,13 +4,13 @@ Functions for the analysis of the TPV TRACK database and its comparison to MCS o
 Created by Julia Kukulies,Feb 2021. 
 
 """
-
+import os 
 import re 
 import numpy as np
 import pandas as pd
 from datetime import datetime
-import xarray 
-
+import xarray as xr 
+import cftime 
 
 def get_composites(times):
     '''
@@ -70,6 +70,53 @@ def get_tracks(filename, year):
     return tpv
 
 
+
+
+
+
+def check_overlap_tpv(tpv,mcs, rad):
+    """
+    Check the overlap between TPV (before they are moving off) and MCS tracks. 
+    
+    Args: 
+    tpv: pandas.DataFrame with TPV tracks 
+    mcs: pandas.DataFrame with MCS tracks 
+    
+    Returns:
+    tpv overlap: TPV with MCS in vicinity 
+    tpv_no_mcs: 
+    
+    """
+    from bisect import bisect_left
+    tpv_overlap = 0         
+    
+    for tpv_id in np.unique(tpv.id.values):
+        tpv_case= tpv[tpv.id == tpv_id]
+        start = tpv_case.time.values[0]
+        end = tpv_case.time.values[-1] + np.timedelta64(1,'D')
+        tpv_case['lon'] =pd.to_numeric(tpv_case['lon'])
+        tpv_case['lat'] =pd.to_numeric(tpv_case['lat'])
+
+        # loop through mcs dates
+        for cell in np.unique(mcs.cell.values):
+            # do the whole thing per year to really get individual cell IDs
+            subset = mcs[mcs.cell == cell]
+            timeoverlap = subset[ (subset.timestr >= start) & (subset.timestr <= end)]
+            if timeoverlap.shape[0]> 0:
+                for t in timeoverlap.timestr.values:
+                    mcslat = timeoverlap[timeoverlap.timestr== t].latitude.values[0]
+                    mcslon = timeoverlap[timeoverlap.timestr== t].longitude.values[0]
+                    # get the closes timestep in TPV set!
+                    i = bisect_left(tpv_case.time.values, t)
+                    tpvt= min(tpv_case.time.values[max(0, i-1): i+2], key=lambda ts: abs(t - ts))
+                    tpvlon= tpv_case[tpv_case.time == tpvt].lon.values[0]
+                    tpvlat= tpv_case[tpv_case.time == tpvt].lat.values[0]
+                    # check for overlap in space
+                    if (mcslat > tpvlat - rad) & (mcslat < tpvlat + rad) & (mcslon < tpvlon + rad) & (mcslon < tpvlon + rad):
+                        tpv_overlap += 1
+                        break 
+            
+    return tpv_overlap, tpv_no_mcs
 
 
 def check_overlap(tpv,mcs):
@@ -211,36 +258,58 @@ def fixed_location(time,loclon,loclat, path = None):
     day = zero_padding(time.day)
     hour = zero_padding(time.hour)
 
-    #################### get corresponding files ########################################## 
-    # GPM (at 1 degree)
+    # deal with leap years 
+    if time.day == 29:
+        day = zero_padding(28)
+    
+    #################### get corresponding files ##########################################
+    # GPM (at 0.1 degree)
     gpm_file= '/media/juli/Elements/gpm_v06/'+ str(time.year)+'/gpm_imerg_' +str(time.year) + month+'_monthly.nc4'
-    precip = xr.open_dataset(gpm_file)
-
 
     # Tb (at 4 km)
     datestr= str(time.year) + month+ day+hour
     ncep_file= '/media/juli/Data/projects/data/satellite_data/ncep/ctt/merg_'+ datestr +'_4km-pixel.nc4'
-    tb = xr.open_dataset(ncep_file)
 
-    
-    ################## Extract region given TPV center location and timestep ###############
-    rad = 5
-    # get closest timesteps
-    timestep1 = precip.sel(time = cftime.DatetimeNoLeap(time.year, time.month, time.day, time.hour), method ='nearest')
-    timestep2 = precip.sel(time = cftime.DatetimeNoLeap(time.year, time.month, time.day, time.hour,30), method ='nearest')
-    # average over timesteps in same hour 
-    timestep_mean = (timestep1 + timestep2) / 2
-    # select fixed location with 3 deg radius
-    prec_fixed = timestep.precipitationCal.isel(lat = (precip.lat <= loclat+ rad) & (precip.lat >=loclat- rad), lon = (precip.lon <= loclon+ rad) & (precip.lon >=loclon- 3))
+    # check if files exist
+    if os.path.isfile(gpm_file) is True and os.path.isfile(ncep_file) is True:
+        try:
+            precip = xr.open_dataset(gpm_file)
+            tb = xr.open_dataset(ncep_file)
 
+            ################## Extract region given TPV center location and timestep ###############
+            rad = 5
 
-    tb_fixed = tb.Tb.isel(lat = (tb.lat <= loclat+ rad) & (tb.lat >=loclat- rad), lon = (tb.lon <= loclon+ rad) & (tb.lon >=loclon- rad) ) 
-    # average over timesteps in same hour 
-    tb_fixed = tb_fixed.mean(dim = 'time')
+            # check if location is still in downloaded observation files
+            if loclon+rad > precip.lon.values.max() or loclat+rad > precip.lat.values.max() or loclon-rad < precip.lon.values.min() or loclat-rad < precip.lat.values.min():
+                print('TPV center location out of dimension of the observation files.')
+            else:
 
-    # save as netcdf
-    if path is None:
-        path = ''
-    tb_fixed.to_netcdf(path + datestr + '_tb.nc4')
-    prec_fixed.to_netcdf(path + datestr + '_precip.nc4')
-    
+                # get closest timesteps
+                timestep1 = precip.sel(time = cftime.DatetimeNoLeap(time.year, time.month, int(day), time.hour,0,0,0,0,0), method ='nearest')
+                timestep2 = precip.sel(time = cftime.DatetimeNoLeap(time.year, time.month, int(day), time.hour,30,0,0,0,0), method ='nearest')
+                # average over timesteps in same hour 
+                timestep = (timestep1 + timestep2) / 2
+                # select fixed location with 3 deg radius
+                prec_fixed = timestep.precipitationCal.isel(lat = (precip.lat <= loclat+ rad) & (precip.lat >=loclat- rad), lon = (precip.lon <= loclon+ rad) & (precip.lon >=loclon- 3))
+
+                tb_fixed = tb.Tb.isel(lat = (tb.lat <= loclat+ rad) & (tb.lat >=loclat- rad), lon = (tb.lon <= loclon+ rad) & (tb.lon >=loclon- rad) ) 
+                # average over timesteps in same hour 
+                tb_fixed = tb_fixed.mean(dim = 'time')
+
+                # save as netcdf
+                if path is None:
+                    path = ''
+                tb_fixed.to_netcdf(path + datestr + '_tb.nc4')
+                prec_fixed.to_netcdf(path + datestr + '_precip.nc4')
+
+                precip.close()
+                tb.close()
+                tb_fixed.close()
+                prec_fixed.close()
+                        
+
+                
+        except IOError:
+            print(datestr, ' --> file corrupted')
+            
+            
