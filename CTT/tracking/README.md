@@ -8,11 +8,8 @@ This directory contains scripts for tracking Meso-scale convective systems in th
 
 The tracking has been performed using collocations of infrared brightness temperatures (NCEP/CPC) and satellite precipitation estimates from GPM IMERG. 
 
-
-- GPM v06, 2000 - 2019, 0.1 deg and 30 min resolution: https://disc.gsfc.nasa.gov/datasets/GPM 3IMERGHH 06/summary 
-- NCEP/CPC 2000 -2019, 4 km and 30 min resolution: https://
-\disc.gsfc.nasa.gov/datasets/GPM\ MERGIR\ V1/summary 
-
+- GPM v06, 2000 - 2019, 0.1 deg and 30 min resolution: https://disc.gsfc.nasa.gov/datasets/GPM_3IMERGHH_06/summary?keywords=GPM%20IMERG%20v06 
+- NCEP/CPC 2000 -2019, 4 km and 30 min resolution: https://disc.gsfc.nasa.gov/datasets/GPM_MERGIR_1/summary
 
 ## Requirements:
 
@@ -36,3 +33,12 @@ The tracking has been performed in three steps.
 
 
 The detailed method and analysis of MCS tracks are described in this paper: https://www.essoar.org/doi/10.1002/essoar.10504239.1 
+
+
+## Data Pre-processing 
+
+The feature detection was performed on monthly aggregated files of half-hourly data. The trajectory linking was performeed by linking the monthly features in one year together. 
+
+
+
+*Contact: julia.kukulies@gu.se*
