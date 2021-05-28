@@ -1,21 +1,39 @@
-## This directory contains tracking files for precipitation - brightness temperature - combined tracking os meso-scale convective systems in the Tibetan plateau region.
 
+## MCS tracking for the Tibetan Plateau region 
+
+This directory contains scripts for tracking Meso-scale convective systems in the Tibetan Plateau region. 
 
 
 # Data sets
 
-- GPM v06, 2000 - 2019, 0.1 deg and 30 min reoslution 
-- NCEP 2000 -2019, 4 km and 30 min resolution 
+The tracking has been performed using collocations of infrared brightness temperatures (NCEP/CPC) and satellite precipitation estimates from GPM IMERG. 
+
+
+- GPM v06, 2000 - 2019, 0.1 deg and 30 min resolution: https://disc.gsfc.nasa.gov/datasets/GPM 3IMERGHH 06/summary 
+- NCEP/CPC 2000 -2019, 4 km and 30 min resolution: https://
+\disc.gsfc.nasa.gov/datasets/GPM\ MERGIR\ V1/summary 
+
 
 # Requirements:
 
-- tobac (Heikenfeld et al., 2019)
+- The python package tobac: https://github.com/climate-processes/tobac
+
+
+# MCS dataset 
+
+The resulting MCS dataset for 2000 - 2019 can be downloaded from 
+
+https://zenodo.org/record/4767152#.YLD_cXUzbmE 
+
 
 
 # Tracking procedure
 
 The tracking has been performed in three steps.
 
-1. Identification of minima in smoothed brightness temperature field
-2. Trajectory linking of detected features
-3. Filtering out tracks, which contain a cold and heavy rain core during their lifetime. For this an overlay with the GPM precipitation data is necessary.  
+1. Identification of minima in smoothed brightness temperature field (Feature detection)
+2. Trajectory linking of detected features based on their average propagation speed and location 
+3. Filtering out tracks, which that do not contain a cold core or heavy rain area during their lifetime.  
+
+
+The detailed method is described in https://www.essoar.org/doi/10.1002/essoar.10504239.1 
