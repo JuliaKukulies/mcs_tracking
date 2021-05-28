@@ -1,96 +1,98 @@
-## This python script performs recombines detected and segmented features based on cloud top temperatures and combines those with precipitation to filter convective systems
+## This python script performs recombines detected and segmented features based on cloud top temperatures and combines those with precipitation to filter convective systems. The tracking is performed per year, which means that MCS tracks at the boundary between two years are recognized as separate MCS tracks. 
 
-import xarray as xr 
-import warnings
-warnings.simplefilter(action = "ignore", category = RuntimeWarning)
-
-import glob 
+import os,sys
+import datetime
+import glob
+import numpy as n
 import iris
 import numpy as np
 import pandas as pd
-import os,sys
-import datetime
-from netCDF4 import Dataset
 import tobac
-
+import xarray as xr 
 from scipy import ndimage
 from scipy.ndimage import generate_binary_structure
+from parameters import parameters_linking, dt, dxy, savedir, data_dir, precip_area, precip_threshold, cold_feature 
 
 ##########################################################################
 
 ## Import elevation file for 3000 m boundary 
-
 dem = '/media/juli/Data/projects/data/elevation/elevation_600x350.nc'
 elevations = xr.open_dataarray(dem)
-
-# mask as coordinates 
+# TP mask as coordinates 
 dem_mask = elevations.where((elevations >= 3000) & (elevations.lat> 27) & (elevations.lat< 40) &(elevations.lon> 70)& (elevations.lon< 105))
 dem_mask.coords['mask'] = (('lon', 'lat'), dem_mask)
 
+#########################################################################
 
-#################################### Tracking parameters ########################
-
-
-# Dictionary containing keyword arguments for the linking step:                                         
-parameters_linking={}          
-dt = 1800
-dxy = 14126.0
-
-s = generate_binary_structure(2,2)
-
-parameters_linking['adaptive_stop']=0.2                                                                 
-parameters_linking['adaptive_step']=0.95                                                                
-parameters_linking['extrapolate']=0                                                                     
-parameters_linking['order']=1
-
-parameters_linking['subnetwork_size']= 1000000 # maximum size of subnetwork used for linking               
-parameters_linking['memory']= 1                                                                          
-parameters_linking['time_cell_min']= 6*dt                                                              
-parameters_linking['method_linking']='predict'                                                          
-#parameters_linking['method_detection']='threshold'                                                    
-parameters_linking['v_max']= 100                                                                        
-#parameters_linking['d_min']=2000                                                                      
-#parameters_linking['d_min']=4*dxy # four times the grid spacing ?                                       
-            
-## Recombination of feature dataframes (update framenumbers)
-savedir= '/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tbbtracking_revised'
-
-
-# get brightness temp file 
-from netCDF4 import Dataset
-f = '/media/juli/Data/projects/data/satellite_data/ncep/ctt/2001/merg_200106.nc4'
-ds= Dataset(f)
-tbb = np.array(ds['Tb']) 
-
-years = np.arange(2002,2020)
+## Recombination of feature dataframes in each months (update framenumbers so that these are consecutive)
+years = np.arange(2000,2020)
 years = years.astype(str)
 
-for year in years:
-    Track = pd.read_hdf('/media/juli/Data/projects/data/satellite_data/ncep/ctt/Save/tbbtracking_revised/tracks/Tracks__' + str(year)+'.h5', 'table')
-    Track = Track[Track.cell >= 0]
-    tracks= Track
-    tracks_cold_core = Track.copy()        
 
+for year in years: 
+    # read in HDF5 files with saved features for the respective year 
+    file_list= glob.glob(savedir  + '/Features_cells_gpm_imerg_'+year+'??.h5')  
+    file_list.sort()
+    print('nr. of monthly feature files:', len(file_list), 'for year', year)
+
+    i = 0 
+    frames = 0 
+
+    for file in file_list: 
+        if i == 0:
+            Features = pd.read_hdf(file, 'table')
+            # read in data mask with segments for tracked cells 
+            date= file[len(file)-12: len(file)-6]
+            ds = Dataset(savedir+ '/Mask_Segmentation_gpm_imerg_'+date+'.nc')
+            mask = np.array(ds['segmentation_mask'])  
+            # update total nr of frames 
+            frames += np.shape(mask)[0] -1
+            i = 1 
+            print('file for: ',date, 'rows: ',Features.shape[0], 'frames: ', frames)
+
+        features = pd.read_hdf(file, 'table')
+        # update frame number and make sure they are sequential
+        features['idx'] = features['frame']
+        features['frame'] = features['frame']  + frames
+
+        # append dataframes 
+        Features = Features.append(features, ignore_index=True)      
+        # read in data mask with segments for tracked cells 
+        date= file[len(file)-12: len(file)-6]
+        ds = Dataset(savedir+ '/Mask_Segmentation_gpm_imerg_'+date+'.nc')
+        mask = np.array(ds['segmentation_mask'])  
+        #update total nr of frames
+        frames += np.shape(mask)[0]
+        print('file for: ',date, 'rows: ',features.shape[0], 'frames: ', frames)
+
+    ## Perform trajectory linking with trackpy 
+    Track=tobac.linking_trackpy(Features, np.zeros((10,10)),dt=dt,dxy=dxy,**parameters_linking)
+    # remove nan values to only save the linked features and remove non-linked features from the list  
+    tracks = Track[Track.cell >= 0]
+    tracks.to_hdf(os.path.join(savedir,'Tracks_'+ str(year) +'_precip_tpflag.h5'),'table' ) 
+    print('trajectory linking for year  '+ str(year) +'performed.')
+    
+    ########################################################################################################
+
+    ###### Filter tracks with extra criteria (here: cold feature and hevay rain area during lifetime) ######
+
+    ########################################################################################################
+    tracks_cold_core = tracks.copy()        
     removed = 0
+    # get extra information on brightness temperatures and precipitation 
     tracks['rain_flag'] = 0
     tracks['tp_flag'] = 0
     tracks['total_precip']= 0
-
     tracks['convective_precip'] = 0
-
-
     tracks['mean_temp'] = 0
     tracks_cold_core['mean_temp'] = 0
     tracks_cold_core['tp_flag'] = 0 
-
     pd.options.mode.chained_assignment = None
-
     tracks['timestr'] = pd.to_datetime(tracks.time)
 
     # loop through cells in detected feature frame 
     for cell in np.unique(tracks.cell.values):
         subset = tracks[tracks.cell == cell]
-        #print('checking heavy rain cores for cell:', cell, subset.shape)
         precipitation_flag = 0
         tbb_flag = 0 
 
@@ -146,8 +148,8 @@ for year in years:
                     values = arr[~np.isnan(arr)] # values contains the amount of grid cells with precip
                     total_precip = np.nansum(values[values > 0]) * 0.5
                     tracks['total_precip'][(tracks.feature == featureid) & (tracks.idx == idx) & (tracks.cell== cell)] = total_precip 
-                    rain_features = values[values >= 5].shape[0]
-                    tracks['convective_precip'][(tracks.feature == featureid) & (tracks.idx == idx)& (tracks.cell== cell)] = np.nansum(values[values >= 5])*0.5
+                    rain_features = values[values >= precip_threshold].shape[0]
+                    tracks['convective_precip'][(tracks.feature == featureid) & (tracks.idx == idx)& (tracks.cell== cell)] = np.nansum(values[values >= precip_threshold])*0.5
                     tracks['rain_flag'][(tracks.feature == featureid) & (tracks.idx == idx)& (tracks.cell== cell)]  = rain_features
 
                     # brightness temperatures cold core filter 
@@ -157,7 +159,7 @@ for year in years:
                     tracks['mean_temp'][(tracks.feature == featureid) & (tracks.idx == idx) & (tracks.cell== cell)] = np.nanmean(values[values > 0])
                     tracks_cold_core['mean_temp'][(tracks_cold_core.feature == featureid) & (tracks_cold_core.idx == idx) & (tracks_cold_core.cell== cell)] = np.nanmean(values[values > 0])
 
-                    if values[values > 0].min() <=200:
+                    if values[values > 0].min() <= cold_feature:
                         tbb_flag += 1 
 
                     # Elevation mask  
@@ -169,29 +171,19 @@ for year in years:
                     tracks['tp_flag'][(tracks.feature == featureid) & (tracks.idx == idx)& (tracks.cell== cell)] =  mountain_features
                     tracks_cold_core['tp_flag'][(tracks_cold_core.feature == featureid) & (tracks_cold_core.idx == idx)& (tracks_cold_core.cell== cell)] =  mountain_features
 
-                    if rain_features >= 25: 
+                    if rain_features >= precip_area: 
                         precipitation_flag += rain_features
-
-            else:
-                np.savetxt(savedir+ 'shape_'+ str(year) +str(month)+'txt', [precip.shape, mask.shape])
-
-
+                        
         if tbb_flag == 0:
             tracks_cold_core = tracks_cold_core.drop(tracks_cold_core[tracks_cold_core.cell == cell].index)
             tracks = tracks.drop(tracks[tracks.cell == cell].index)
 
-
         if precipitation_flag  ==  0:
             # remove corresponding cell from track dataframe 
             tracks = tracks.drop(tracks[tracks.cell == cell].index)
-            #print(cell, ' removed.')
-            removed += 1 
-        #else:
-            #print('heavy rain core present in:  ', cell, rain_features)
-
-    #print(removed, ' cells removed in total.')
+            removed += 1
+            
+    # save track files 
     tracks_cold_core.to_hdf(os.path.join(savedir,'Tracks_'+ str(year) +'_cold_core.h5'),'table' )            
-    tracks.to_hdf(os.path.join(savedir,'Tracks_'+ str(year) +'_heavyraincore3mm.h5'),'table' ) 
-
-    print('trajectory linking for year  '+ str(year) +'performed.') 
-
+    tracks.to_hdf(os.path.join(savedir,'Tracks_'+ str(year) +'_heavy_rain_core.h5'),'table' )
+    print('tracks filtered for year  '+ str(year) +'performed.') 
