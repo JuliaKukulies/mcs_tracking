@@ -21,7 +21,8 @@ from parameters import parameters_features, parameters_segmentation, dxy, dt
 
 # update parameters according to grid size
 dxy= 10000
-parameters_features['n_min_threshold'] = 10 
+parameters_features['n_min_threshold'] = 100
+
 
 # function to create netcdf file with segmentation mask 
 def create_netcdf(Mask, precipfile, output):
@@ -58,7 +59,7 @@ for year in years:
         files= glob.glob(str(datadir) + f)
         # select only one month at the time
         fname= files[0]
-        print('processing file....', fname)
+        print('processing file....', fname, 'month', mon)
         precip= xr.open_dataarray(fname)
         monthly_precip = precip.sel(time=precip['time.month']== mon)
         monthly_precip.to_netcdf('monthly_file.nc')
@@ -73,10 +74,10 @@ for year in years:
         # segmentation
         Mask, Features_cells = tobac.segmentation_2D(Features, Precip, dxy, **parameters_segmentation)
         print('segmentation done.')
-        mask_out = 'Mask_segmentation_' + str(year)+ str(mon) +'.nc'
-        create_netcdf(Mask, fname, savedir/mask_out)
+        mask_out = 'Mask_segmentation_' + str(year)+ '_' + str(mon) +'.nc'
+        create_netcdf(Mask, 'monthly_file.nc', savedir/mask_out)
         #iris.save([Mask], savedir/ mask_out ,zlib=True,complevel=4)
-        features_out = 'Features_cells_' + str(year)+ str(mon) +'.h5'
+        features_out = 'Features_cells_' + str(year)+ '_' + str(mon) +'.h5'
         Features_cells.to_hdf(savedir/ features_out ,'table')
         print('files saved.')
         os.remove('monthly_file.nc')

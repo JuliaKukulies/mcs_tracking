@@ -18,44 +18,53 @@ warnings.filterwarnings('ignore',category=pd.io.pytables.PerformanceWarning)
 # import parameters for feature detection and segmentation
 from parameters import parameters_features, parameters_segmentation, dxy, dt
 
+dxy= 30000
+parameters_features['n_min_threshold'] = 10
+
 # function to create netcdf file with segmentation mask 
-def create_netcdf(Mask, precipfile, output):
+def create_netcdf(Mask, xprecip, output):
     ''' 
     Args:  
 
     Mask: iris cube with masked features
-    precipfile(str or path): file that contains hourly precipitation 
+    xprecip(str or path): extracted xarray that contains hourly precipitation 
     output(str): name of output file  
     
     '''
-    xprecip= xr.open_dataset(precipfile)
-    data_vars= dict(segmentation_mask=(["time", "south_north", "west_east"], Mask.data),  lat= (["south_north", "west_east"], xprecip.lat.values), lon = (["south_north", "west_east"], xprecip.lon.values)  )
-    coords = dict( time= xprecip.time, south_north = xprecip.south_north.values, west_east=xprecip.west_east.values)
+    data_vars= dict(segmentation_mask=(["time", "latitude", "longitude"], Mask.data)  )
+    coords = dict( time= xprecip.time, latitude = xprecip.latitude.values, longitude = xprecip.longitude.values)
     data= xr.Dataset(data_vars= data_vars, coords = coords)
     data.to_netcdf(output)
-
 
     
 ####################### Feature detection and Segmentation##################################
 # set directories for monthly chunks of hourly data and output 
-savedir = Path('wrf/')
-datadir = Path('/media/WRFSVars/Hourly/Precip/')
+savedir = Path('era5/')
+datadir = Path('/media/CDS/ERA5/Hourly/NCs/')
 
 
 # loop through monthly files 
 years= np.arange(2000,2017)
 months = np.arange(1,13)
 
+
+
 for year in years:
     for mon in months:
         if mon <10:
             mon= '0' + str(mon)
         # open file with hourly precip
-        fname= 'WRFOut_TP9km_HourlyP_'+ str(year)+'_' + str(mon)+ '.nc'
+        fname= 'ERA5_'+ str(year)+'-' + str(mon)+ '_PT_GlHrly.nc'
         print('processing file....', fname)
         f= datadir/ fname
-        Precip=iris.load_cube(str(f), 'Prep')
-        
+
+        # extract domain and fix unit (from m to mm per hour) 
+        precip= xr.open_dataset(f)
+        lc= precip.coords["longitude"]
+        la= precip.coords["latitude"]
+        precip_tp= precip.tp.loc[dict(longitude=lc[(lc > 50) & (lc < 135)], latitude=la[(la > 10) & (la < 50)])] * 1000
+        Precip= xr.DataArray.to_iris(precip_tp)
+
         # feature detection
         Features= tobac.feature_detection_multithreshold(Precip,dxy,**parameters_features)
         outname= 'Features_' + str(year)+ str(mon) +'.h5'
@@ -63,11 +72,10 @@ for year in years:
         print('feature detection done.')
         
         # segmentation
-        Precip=iris.load_cube(str(f), 'Prep')
         Mask, Features_cells = tobac.segmentation_2D(Features, Precip, dxy, **parameters_segmentation)
         print('segmentation done.')
         mask_out = 'Mask_segmentation_' + str(year)+ str(mon) +'.nc'
-        create_netcdf(Mask, fname, savedir/mask_out)
+        create_netcdf(Mask, precip_tp, savedir/mask_out)
         #iris.save([Mask], savedir/ mask_out ,zlib=True,complevel=4)
         features_out = 'Features_cells_' + str(year)+ str(mon) +'.h5'
         Features_cells.to_hdf(savedir/ features_out ,'table')
