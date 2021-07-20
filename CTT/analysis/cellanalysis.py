@@ -82,12 +82,16 @@ def get_area(tracks):
     return a
 
 
+
 def propagation_dir(tracks):
-    '''Derive propagation direction for MCS tracks. '''
+    '''
+    Derive dominating propagation direction of MCS tracks.
+    '''
     pd.options.mode.chained_assignment = None 
     
     tracks['dir'] = 0 
     for y in np.arange(2000,2020): 
+        print(y)
         ytracks = tracks[tracks.time.dt.year == y]
         for c in np.unique(ytracks.cell.values):
             cell= tracks[(tracks.cell == c) & (tracks.time.dt.year == y)]
@@ -95,18 +99,19 @@ def propagation_dir(tracks):
             north_south =  np.nanmean(cell.latitude.values[-3::]) -  np.nanmean(cell.latitude.values[0:3])
             west_east = np.nanmean(cell.longitude.values[-3::]) -  np.nanmean(cell.longitude.values[0:3])
 
-            if north_south > west_east:
+            if np.abs(north_south) > np.abs(west_east):
                 if np.nanmean(cell.latitude.values[0:3]) < np.nanmean(cell.latitude.values[-3::]):
                     tracks['dir'][(tracks.cell == c) & (tracks.time.dt.year == y)] =  'N'
                 elif np.nanmean(cell.latitude.values[0:3]) > np.nanmean(cell.latitude.values[-3::]):
                     tracks['dir'][(tracks.cell == c) & (tracks.time.dt.year == y)] =  'S'
 
-            elif north_south < west_east:
+            elif np.abs(north_south) < np.abs(west_east):
                 if np.nanmean(cell.longitude.values[0:3]) < np.nanmean(cell.longitude.values[-3::]):
                     tracks['dir'][(tracks.cell == c) & (tracks.time.dt.year == y)] =  'E'
                 elif np.nanmean(cell.longitude.values[0:3]) > np.nanmean(cell.longitude.values[-3::]):
                     tracks['dir'][(tracks.cell == c) & (tracks.time.dt.year == y)] =  'W'
     return tracks 
+
 
 
 
