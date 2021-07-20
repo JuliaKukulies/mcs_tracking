@@ -133,13 +133,18 @@ def get_diurnal_cycle(preciptracks):
 
 
 
+
 def get_diurnal_init(preciptracks):
     preciptracks['hour']= preciptracks.timestr.dt.hour
     diurnal=[]
-    for cell in np.unique(preciptracks.cell.values):
-        init_hour = preciptracks[preciptracks.cell == cell].hour.values[0]
-        diurnal.append(init_hour)
+    for y in np.arange(2000,2020):
+        ytracks = preciptracks[preciptracks.time.dt.year == y]
+        for cell in np.unique(ytracks.cell.values):
+            init_hour = ytracks[ytracks.cell == cell].hour.values[0]
+            diurnal.append(init_hour)
     return diurnal
+
+
 
 
 
