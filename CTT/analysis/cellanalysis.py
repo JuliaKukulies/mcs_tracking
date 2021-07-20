@@ -82,31 +82,31 @@ def get_area(tracks):
     return a
 
 
-# divide into north-moving, east-moving and other 
-
 def propagation_dir(tracks):
+    '''Derive propagation direction for MCS tracks. '''
     pd.options.mode.chained_assignment = None 
     
     tracks['dir'] = 0 
-    for c in np.unique(tracks.cell.values):
-        cell= tracks[tracks.cell == c]
+    for y in np.arange(2000,2020): 
+        ytracks = tracks[tracks.time.dt.year == y]
+        for c in np.unique(ytracks.cell.values):
+            cell= tracks[(tracks.cell == c) & (tracks.time.dt.year == y)]
+            
+            north_south =  np.nanmean(cell.latitude.values[-3::]) -  np.nanmean(cell.latitude.values[0:3])
+            west_east = np.nanmean(cell.longitude.values[-3::]) -  np.nanmean(cell.longitude.values[0:3])
 
-        west_east= np.nanmean(cell.longitude.values[-3:-1])  - np.nanmean(cell.longitude.values[-0:2])
-        north_south= np.nanmean(cell.latitude.values[-3:-1])  - np.nanmean(cell.latitude.values[-0:2])
-                                                                         
-        if north_south > west_east:
-            if np.nanmean(cell.latitude.values[0:2]) < np.nanmean(cell.latitude.values[-3:-1]):
-                tracks['dir'][tracks.cell == c] =  'N'
-            elif np.nanmean(cell.latitude.values[0:2]) > np.nanmean(cell.latitude.values[-3:-1]):
-                tracks['dir'][tracks.cell == c] =  'S'
-                
-        elif north_south < west_east:
-            if np.nanmean(cell.longitude.values[0:2]) < np.nanmean(cell.longitude.values[-3:-1]):
-                tracks['dir'][tracks.cell == c] =  'E'
-            elif np.nanmean(cell.longitude.values[0:2]) > np.nanmean(cell.longitude.values[-3:-1]):
-                tracks['dir'][tracks.cell == c] =  'W'
+            if north_south > west_east:
+                if np.nanmean(cell.latitude.values[0:3]) < np.nanmean(cell.latitude.values[-3::]):
+                    tracks['dir'][(tracks.cell == c) & (tracks.time.dt.year == y)] =  'N'
+                elif np.nanmean(cell.latitude.values[0:3]) > np.nanmean(cell.latitude.values[-3::]):
+                    tracks['dir'][(tracks.cell == c) & (tracks.time.dt.year == y)] =  'S'
+
+            elif north_south < west_east:
+                if np.nanmean(cell.longitude.values[0:3]) < np.nanmean(cell.longitude.values[-3::]):
+                    tracks['dir'][(tracks.cell == c) & (tracks.time.dt.year == y)] =  'E'
+                elif np.nanmean(cell.longitude.values[0:3]) > np.nanmean(cell.longitude.values[-3::]):
+                    tracks['dir'][(tracks.cell == c) & (tracks.time.dt.year == y)] =  'W'
     return tracks 
-
 
 
 
