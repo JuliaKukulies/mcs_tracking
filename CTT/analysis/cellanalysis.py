@@ -83,6 +83,7 @@ def get_area(tracks):
 
 
 
+
 def propagation_dir(tracks):
     '''
     Derive dominating propagation direction of MCS tracks.
@@ -113,7 +114,38 @@ def propagation_dir(tracks):
     return tracks 
 
 
-
+def linear_fit_angle(tracks):
+    '''
+    Derive propagation direction of MCS tracks based on least square fitting.
+    '''
+    from scipy.stats import linregress
+    pd.options.mode.chained_assignment = None 
+    
+    tracks['dir_lin'] = 0 
+    for year in np.arange(2000,2020): 
+        print(year)
+        ytracks = tracks[tracks.time.dt.year == year]
+        for c in np.unique(ytracks.cell.values):
+            cell= tracks[(tracks.cell == c) & (tracks.time.dt.year == year)] 
+            
+            # set initiation point to 0
+            lats = cell.latitude.values - cell.latitude.values[0]
+            lons = cell.longitude.values - cell.longitude.values[0]
+            slope, intercept, r, p, se = linregress(lons, lats)
+            # find angle between fitted line and horizontal
+            x= lons 
+            y = intercept + slope*lons 
+            angle = np.rad2deg(np.arctan2(y[-1] - y[0], x[-1] - x[0]))
+            
+            if angle > 45 and angle <=135:
+                tracks['dir_lin'][(tracks.cell == c) & (tracks.time.dt.year == year)] =  'N'
+            elif angle > -45 and angle <=45:
+                tracks['dir_lin'][(tracks.cell == c) & (tracks.time.dt.year == year)] =  'E'
+            elif angle < -45 and angle >= -135:
+                tracks['dir_lin'][(tracks.cell == c) & (tracks.time.dt.year == year)] =  'S'
+            elif angle < -135 or angle > 135:
+                tracks['dir_lin'][(tracks.cell == c) & (tracks.time.dt.year == year)] =  'W'
+    return tracks 
 
 
 def get_v(tracks):
